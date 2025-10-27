@@ -115,7 +115,7 @@ class App:
         # Regions
         ttk.Label(frm, text="Régions (séparées par des virgules):").grid(row=1, column=0, sticky="w", pady=(8, 0))
         self.regions = ttk.Entry(frm, width=60)
-        self.regions.insert(0, "us-east-1,eu-west-1")
+        self.regions.insert(0, "eu-central-1")
         self.regions.grid(row=2, column=0, sticky="w")
 
         # Status bar
@@ -133,7 +133,8 @@ class App:
         ttk.Button(btns, text="Lister Subscriptions", command=self.list_links_action).grid(row=0, column=3, padx=(0, 6))
         ttk.Button(btns, text="Exporter JSON", command=self.export_json).grid(row=0, column=4, padx=(20, 6))
         ttk.Button(btns, text="Générer Mermaid", command=self.generate_mermaid).grid(row=0, column=5, padx=(20, 6))
-        ttk.Button(btns, text="Tester Connexion", command=self.test_connection).grid(row=0, column=6, padx=(20, 6))
+        ttk.Button(btns, text="Générer Draw.io", command=self.generate_drawio).grid(row=0, column=6, padx=(20, 6))
+        ttk.Button(btns, text="Tester Connexion", command=self.test_connection).grid(row=0, column=7, padx=(20, 6))
 
         # Results
         res_frame = ttk.Frame(frm)
@@ -385,6 +386,183 @@ class App:
             messagebox.showinfo("Export", f"Diagramme Mermaid enregistré: {path}")
         except Exception as exc:
             messagebox.showerror("Erreur", f"Erreur lors de la génération du diagramme Mermaid: {exc}")
+
+    def generate_drawio(self):
+        if not self.latest_inventory["topics"] and not self.latest_inventory["queues"] and not self.latest_inventory["links"]:
+            messagebox.showinfo("Info", "Aucune donnée à exporter. Lancer une lecture d'abord.")
+            return
+        
+        try:
+            # Générer le diagramme Draw.io
+            drawio_content = self._create_drawio_diagram()
+            
+            # Sauvegarder le fichier
+            path = filedialog.asksaveasfilename(defaultextension=".drawio", filetypes=[("Draw.io","*.drawio"), ("XML","*.xml")])
+            if not path:
+                return
+            
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(drawio_content)
+            
+            messagebox.showinfo("Export", f"Diagramme Draw.io enregistré: {path}")
+        except Exception as exc:
+            messagebox.showerror("Erreur", f"Erreur lors de la génération du diagramme Draw.io: {exc}")
+
+    def _create_drawio_diagram(self):
+        """Crée un diagramme Draw.io au format XML"""
+        import xml.etree.ElementTree as ET
+        from xml.dom import minidom
+        
+        # Créer la racine du diagramme
+        root = ET.Element("mxfile")
+        root.set("host", "app.diagrams.net")
+        root.set("modified", "2024-01-01T00:00:00.000Z")
+        root.set("agent", "AWS SNS/SQS Browser")
+        root.set("version", "22.1.16")
+        root.set("etag", "abc123")
+        
+        diagram = ET.SubElement(root, "diagram")
+        diagram.set("id", "aws-sns-sqs")
+        diagram.set("name", "AWS SNS/SQS Architecture")
+        
+        mxGraphModel = ET.SubElement(diagram, "mxGraphModel")
+        mxGraphModel.set("dx", "1422")
+        mxGraphModel.set("dy", "754")
+        mxGraphModel.set("grid", "1")
+        mxGraphModel.set("gridSize", "10")
+        mxGraphModel.set("guides", "1")
+        mxGraphModel.set("tooltips", "1")
+        mxGraphModel.set("connect", "1")
+        mxGraphModel.set("arrows", "1")
+        mxGraphModel.set("fold", "1")
+        mxGraphModel.set("page", "1")
+        mxGraphModel.set("pageScale", "1")
+        mxGraphModel.set("pageWidth", "1169")
+        mxGraphModel.set("pageHeight", "827")
+        mxGraphModel.set("background", "#ffffff")
+        mxGraphModel.set("math", "0")
+        mxGraphModel.set("shadow", "0")
+        
+        root_elem = ET.SubElement(mxGraphModel, "root")
+        
+        # Cellules par défaut
+        default_cell = ET.SubElement(root_elem, "mxCell")
+        default_cell.set("id", "0")
+        
+        default_cell2 = ET.SubElement(root_elem, "mxCell")
+        default_cell2.set("id", "1")
+        default_cell2.set("parent", "0")
+        
+        # Position de départ
+        y_pos = 50
+        x_pos = 50
+        cell_id = 2
+        
+        # Grouper par région
+        regions_data = {}
+        for topic in self.latest_inventory["topics"]:
+            region = topic.get("region", "unknown")
+            if region not in regions_data:
+                regions_data[region] = {"topics": [], "queues": [], "links": []}
+            regions_data[region]["topics"].append(topic)
+        
+        for queue in self.latest_inventory["queues"]:
+            region = queue.get("region", "unknown")
+            if region not in regions_data:
+                regions_data[region] = {"topics": [], "queues": [], "links": []}
+            regions_data[region]["queues"].append(queue)
+        
+        for link in self.latest_inventory["links"]:
+            region = link.get("region", "unknown")
+            if region not in regions_data:
+                regions_data[region] = {"topics": [], "queues": [], "links": []}
+            regions_data[region]["links"].append(link)
+        
+        # Créer les éléments du diagramme
+        topic_cells = {}
+        queue_cells = {}
+        
+        for region, data in regions_data.items():
+            # Titre de région
+            region_title = ET.SubElement(root_elem, "mxCell")
+            region_title.set("id", str(cell_id))
+            region_title.set("value", f"Région: {region}")
+            region_title.set("style", "text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1")
+            region_title.set("vertex", "1")
+            region_title.set("parent", "1")
+            region_geom = ET.SubElement(region_title, "mxGeometry")
+            region_geom.set("x", str(x_pos))
+            region_geom.set("y", str(y_pos))
+            region_geom.set("width", "200")
+            region_geom.set("height", "30")
+            region_geom.set("as", "geometry")
+            cell_id += 1
+            y_pos += 50
+            
+            # Topics SNS
+            for topic in data["topics"]:
+                topic_name = topic.get("name", "Unknown")
+                topic_cell = ET.SubElement(root_elem, "mxCell")
+                topic_cell.set("id", str(cell_id))
+                topic_cell.set("value", f"SNS Topic\n{topic_name}")
+                topic_cell.set("style", "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12")
+                topic_cell.set("vertex", "1")
+                topic_cell.set("parent", "1")
+                topic_geom = ET.SubElement(topic_cell, "mxGeometry")
+                topic_geom.set("x", str(x_pos))
+                topic_geom.set("y", str(y_pos))
+                topic_geom.set("width", "120")
+                topic_geom.set("height", "60")
+                topic_geom.set("as", "geometry")
+                topic_cells[topic.get("arn", "")] = cell_id
+                cell_id += 1
+                y_pos += 80
+            
+            # Queues SQS
+            y_pos += 20
+            for queue in data["queues"]:
+                queue_name = queue.get("name", "Unknown")
+                queue_cell = ET.SubElement(root_elem, "mxCell")
+                queue_cell.set("id", str(cell_id))
+                queue_cell.set("value", f"SQS Queue\n{queue_name}")
+                queue_cell.set("style", "ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12")
+                queue_cell.set("vertex", "1")
+                queue_cell.set("parent", "1")
+                queue_geom = ET.SubElement(queue_cell, "mxGeometry")
+                queue_geom.set("x", str(x_pos + 200))
+                queue_geom.set("y", str(y_pos))
+                queue_geom.set("width", "120")
+                queue_geom.set("height", "60")
+                queue_geom.set("as", "geometry")
+                queue_cells[queue.get("arn", "")] = cell_id
+                cell_id += 1
+                y_pos += 80
+            
+            y_pos += 50
+            x_pos += 400
+        
+        # Créer les connexions
+        for link in self.latest_inventory["links"]:
+            topic_arn = link.get("topic_arn", "")
+            queue_arn = link.get("queue_arn", "")
+            
+            if topic_arn in topic_cells and queue_arn in queue_cells:
+                connection = ET.SubElement(root_elem, "mxCell")
+                connection.set("id", str(cell_id))
+                connection.set("style", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#666666;strokeWidth=2")
+                connection.set("edge", "1")
+                connection.set("parent", "1")
+                connection.set("source", str(topic_cells[topic_arn]))
+                connection.set("target", str(queue_cells[queue_arn]))
+                edge_geom = ET.SubElement(connection, "mxGeometry")
+                edge_geom.set("relative", "1")
+                edge_geom.set("as", "geometry")
+                cell_id += 1
+        
+        # Convertir en XML formaté
+        rough_string = ET.tostring(root, 'utf-8')
+        reparsed = minidom.parseString(rough_string)
+        return reparsed.toprettyxml(indent="  ")
 
     def _list_links(self):
         try:
