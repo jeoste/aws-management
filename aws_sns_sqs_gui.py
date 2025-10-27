@@ -112,6 +112,13 @@ class App:
         self.profile = ttk.Entry(creds, width=30)
         self.profile.grid(row=3, column=1, sticky="w")
 
+        # Mémoire des identifiants (Windows Credential Manager via keyring)
+        remember_frame = ttk.Frame(creds)
+        remember_frame.grid(row=4, column=0, columnspan=2, sticky="w")
+        self.remember_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(remember_frame, text="Mémoriser (Windows Credential Manager)", variable=self.remember_var).grid(row=0, column=0, sticky="w")
+        ttk.Button(remember_frame, text="Oublier identifiants", command=self.clear_saved_credentials_action).grid(row=0, column=1, padx=(8, 0))
+
         # Regions
         ttk.Label(frm, text="Régions (séparées par des virgules):").grid(row=1, column=0, sticky="w", pady=(8, 0))
         self.regions = ttk.Entry(frm, width=60)
@@ -133,7 +140,7 @@ class App:
         ttk.Button(btns, text="Lister Subscriptions", command=self.list_links_action).grid(row=0, column=3, padx=(0, 6))
         ttk.Button(btns, text="Exporter JSON", command=self.export_json).grid(row=0, column=4, padx=(20, 6))
         ttk.Button(btns, text="Générer Mermaid", command=self.generate_mermaid).grid(row=0, column=5, padx=(20, 6))
-        ttk.Button(btns, text="Générer Draw.io", command=self.generate_drawio).grid(row=0, column=6, padx=(20, 6))
+        ttk.Button(btns, text="Exporter SQL", command=self.export_sql).grid(row=0, column=6, padx=(20, 6))
         ttk.Button(btns, text="Tester Connexion", command=self.test_connection).grid(row=0, column=7, padx=(20, 6))
 
         # Results
@@ -181,6 +188,9 @@ class App:
         # Data storage
         self.latest_inventory = {"topics": [], "queues": [], "links": []}
 
+        # Charger d'éventuels identifiants sauvegardés
+        self._load_saved_credentials()
+
     def parse_regions(self) -> List[str]:
         txt = self.regions.get().strip()
         if not txt:
@@ -209,6 +219,8 @@ class App:
     def _test_connection(self):
         try:
             self.root.after(0, lambda: self.status_var.set("Test de connexion en cours..."))
+            # Sauvegarder si demandé
+            self._save_credentials_if_checked()
             session = get_session(self.access_key.get().strip() or None, self.secret_key.get().strip() or None, self.session_token.get().strip() or None, self.profile.get().strip() or None)
             
             # Tester avec STS pour obtenir les infos du compte
@@ -220,6 +232,9 @@ class App:
             success_msg = f"Connexion réussie ! Compte: {account_id}\nUtilisateur: {user_arn}"
             self.root.after(0, lambda: self.status_var.set(f"Connecté - Compte: {account_id}"))
             self.root.after(0, lambda: messagebox.showinfo("Connexion réussie", success_msg))
+
+            # Enregistrer après succès si la case est cochée
+            self._save_credentials_if_checked()
             
         except Exception as exc:
             err = str(exc)
@@ -229,6 +244,7 @@ class App:
     def _list_topics(self):
         try:
             self.root.after(0, lambda: self.status_var.set("Récupération des topics SNS..."))
+            self._save_credentials_if_checked()
             session = get_session(self.access_key.get().strip() or None, self.secret_key.get().strip() or None, self.session_token.get().strip() or None, self.profile.get().strip() or None)
             regions = self.parse_regions()
             all_topics = []
@@ -247,6 +263,7 @@ class App:
     def _list_queues(self):
         try:
             self.root.after(0, lambda: self.status_var.set("Récupération des queues SQS..."))
+            self._save_credentials_if_checked()
             session = get_session(self.access_key.get().strip() or None, self.secret_key.get().strip() or None, self.session_token.get().strip() or None, self.profile.get().strip() or None)
             regions = self.parse_regions()
             all_queues = []
@@ -265,6 +282,7 @@ class App:
     def _list_both(self):
         try:
             self.root.after(0, lambda: self.status_var.set("Récupération complète en cours..."))
+            self._save_credentials_if_checked()
             session = get_session(self.access_key.get().strip() or None, self.secret_key.get().strip() or None, self.session_token.get().strip() or None, self.profile.get().strip() or None)
             regions = self.parse_regions()
             all_topics = []
@@ -387,186 +405,63 @@ class App:
         except Exception as exc:
             messagebox.showerror("Erreur", f"Erreur lors de la génération du diagramme Mermaid: {exc}")
 
-    def generate_drawio(self):
+
+    def export_sql(self):
         if not self.latest_inventory["topics"] and not self.latest_inventory["queues"] and not self.latest_inventory["links"]:
             messagebox.showinfo("Info", "Aucune donnée à exporter. Lancer une lecture d'abord.")
             return
-        
         try:
-            # Générer le diagramme Draw.io
-            drawio_content = self._create_drawio_diagram()
-            
-            # Sauvegarder le fichier
-            path = filedialog.asksaveasfilename(defaultextension=".drawio", filetypes=[("Draw.io","*.drawio"), ("XML","*.xml")])
+            ddl_parts = []
+            ddl_parts.append(
+                """
+CREATE TABLE sns_topic (
+  arn VARCHAR(2048) PRIMARY KEY,
+  name VARCHAR(255),
+  region VARCHAR(64)
+);
+                """.strip()
+            )
+            ddl_parts.append(
+                """
+CREATE TABLE sqs_queue (
+  arn VARCHAR(2048) PRIMARY KEY,
+  name VARCHAR(255),
+  url VARCHAR(2048),
+  region VARCHAR(64)
+);
+                """.strip()
+            )
+            ddl_parts.append(
+                """
+CREATE TABLE subscription (
+  topic_arn VARCHAR(2048) NOT NULL,
+  queue_arn VARCHAR(2048) NOT NULL,
+  region VARCHAR(64),
+  PRIMARY KEY (topic_arn, queue_arn),
+  CONSTRAINT fk_subscription_topic FOREIGN KEY (topic_arn) REFERENCES sns_topic(arn),
+  CONSTRAINT fk_subscription_queue FOREIGN KEY (queue_arn) REFERENCES sqs_queue(arn)
+);
+                """.strip()
+            )
+
+            # Optionnel: ajouter des commentaires pour aider à l'interprétation
+            # Les INSERT ne sont pas nécessaires pour l'import SQL de draw.io pour créer l'ERD.
+
+            ddl = "\n\n".join(ddl_parts)
+
+            path = filedialog.asksaveasfilename(defaultextension=".sql", filetypes=[("SQL","*.sql"), ("Text","*.txt")])
             if not path:
                 return
-            
             with open(path, "w", encoding="utf-8") as f:
-                f.write(drawio_content)
-            
-            messagebox.showinfo("Export", f"Diagramme Draw.io enregistré: {path}")
+                f.write(ddl)
+            messagebox.showinfo("Export", f"DDL SQL exporté: {path}\n\nImportez-le dans draw.io via Arrange > Insert > Advanced > SQL.")
         except Exception as exc:
-            messagebox.showerror("Erreur", f"Erreur lors de la génération du diagramme Draw.io: {exc}")
-
-    def _create_drawio_diagram(self):
-        """Crée un diagramme Draw.io au format XML"""
-        import xml.etree.ElementTree as ET
-        from xml.dom import minidom
-        
-        # Créer la racine du diagramme
-        root = ET.Element("mxfile")
-        root.set("host", "app.diagrams.net")
-        root.set("modified", "2024-01-01T00:00:00.000Z")
-        root.set("agent", "AWS SNS/SQS Browser")
-        root.set("version", "22.1.16")
-        root.set("etag", "abc123")
-        
-        diagram = ET.SubElement(root, "diagram")
-        diagram.set("id", "aws-sns-sqs")
-        diagram.set("name", "AWS SNS/SQS Architecture")
-        
-        mxGraphModel = ET.SubElement(diagram, "mxGraphModel")
-        mxGraphModel.set("dx", "1422")
-        mxGraphModel.set("dy", "754")
-        mxGraphModel.set("grid", "1")
-        mxGraphModel.set("gridSize", "10")
-        mxGraphModel.set("guides", "1")
-        mxGraphModel.set("tooltips", "1")
-        mxGraphModel.set("connect", "1")
-        mxGraphModel.set("arrows", "1")
-        mxGraphModel.set("fold", "1")
-        mxGraphModel.set("page", "1")
-        mxGraphModel.set("pageScale", "1")
-        mxGraphModel.set("pageWidth", "1169")
-        mxGraphModel.set("pageHeight", "827")
-        mxGraphModel.set("background", "#ffffff")
-        mxGraphModel.set("math", "0")
-        mxGraphModel.set("shadow", "0")
-        
-        root_elem = ET.SubElement(mxGraphModel, "root")
-        
-        # Cellules par défaut
-        default_cell = ET.SubElement(root_elem, "mxCell")
-        default_cell.set("id", "0")
-        
-        default_cell2 = ET.SubElement(root_elem, "mxCell")
-        default_cell2.set("id", "1")
-        default_cell2.set("parent", "0")
-        
-        # Position de départ
-        y_pos = 50
-        x_pos = 50
-        cell_id = 2
-        
-        # Grouper par région
-        regions_data = {}
-        for topic in self.latest_inventory["topics"]:
-            region = topic.get("region", "unknown")
-            if region not in regions_data:
-                regions_data[region] = {"topics": [], "queues": [], "links": []}
-            regions_data[region]["topics"].append(topic)
-        
-        for queue in self.latest_inventory["queues"]:
-            region = queue.get("region", "unknown")
-            if region not in regions_data:
-                regions_data[region] = {"topics": [], "queues": [], "links": []}
-            regions_data[region]["queues"].append(queue)
-        
-        for link in self.latest_inventory["links"]:
-            region = link.get("region", "unknown")
-            if region not in regions_data:
-                regions_data[region] = {"topics": [], "queues": [], "links": []}
-            regions_data[region]["links"].append(link)
-        
-        # Créer les éléments du diagramme
-        topic_cells = {}
-        queue_cells = {}
-        
-        for region, data in regions_data.items():
-            # Titre de région
-            region_title = ET.SubElement(root_elem, "mxCell")
-            region_title.set("id", str(cell_id))
-            region_title.set("value", f"Région: {region}")
-            region_title.set("style", "text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1")
-            region_title.set("vertex", "1")
-            region_title.set("parent", "1")
-            region_geom = ET.SubElement(region_title, "mxGeometry")
-            region_geom.set("x", str(x_pos))
-            region_geom.set("y", str(y_pos))
-            region_geom.set("width", "200")
-            region_geom.set("height", "30")
-            region_geom.set("as", "geometry")
-            cell_id += 1
-            y_pos += 50
-            
-            # Topics SNS
-            for topic in data["topics"]:
-                topic_name = topic.get("name", "Unknown")
-                topic_cell = ET.SubElement(root_elem, "mxCell")
-                topic_cell.set("id", str(cell_id))
-                topic_cell.set("value", f"SNS Topic\n{topic_name}")
-                topic_cell.set("style", "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12")
-                topic_cell.set("vertex", "1")
-                topic_cell.set("parent", "1")
-                topic_geom = ET.SubElement(topic_cell, "mxGeometry")
-                topic_geom.set("x", str(x_pos))
-                topic_geom.set("y", str(y_pos))
-                topic_geom.set("width", "120")
-                topic_geom.set("height", "60")
-                topic_geom.set("as", "geometry")
-                topic_cells[topic.get("arn", "")] = cell_id
-                cell_id += 1
-                y_pos += 80
-            
-            # Queues SQS
-            y_pos += 20
-            for queue in data["queues"]:
-                queue_name = queue.get("name", "Unknown")
-                queue_cell = ET.SubElement(root_elem, "mxCell")
-                queue_cell.set("id", str(cell_id))
-                queue_cell.set("value", f"SQS Queue\n{queue_name}")
-                queue_cell.set("style", "ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12")
-                queue_cell.set("vertex", "1")
-                queue_cell.set("parent", "1")
-                queue_geom = ET.SubElement(queue_cell, "mxGeometry")
-                queue_geom.set("x", str(x_pos + 200))
-                queue_geom.set("y", str(y_pos))
-                queue_geom.set("width", "120")
-                queue_geom.set("height", "60")
-                queue_geom.set("as", "geometry")
-                queue_cells[queue.get("arn", "")] = cell_id
-                cell_id += 1
-                y_pos += 80
-            
-            y_pos += 50
-            x_pos += 400
-        
-        # Créer les connexions
-        for link in self.latest_inventory["links"]:
-            topic_arn = link.get("topic_arn", "")
-            queue_arn = link.get("queue_arn", "")
-            
-            if topic_arn in topic_cells and queue_arn in queue_cells:
-                connection = ET.SubElement(root_elem, "mxCell")
-                connection.set("id", str(cell_id))
-                connection.set("style", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#666666;strokeWidth=2")
-                connection.set("edge", "1")
-                connection.set("parent", "1")
-                connection.set("source", str(topic_cells[topic_arn]))
-                connection.set("target", str(queue_cells[queue_arn]))
-                edge_geom = ET.SubElement(connection, "mxGeometry")
-                edge_geom.set("relative", "1")
-                edge_geom.set("as", "geometry")
-                cell_id += 1
-        
-        # Convertir en XML formaté
-        rough_string = ET.tostring(root, 'utf-8')
-        reparsed = minidom.parseString(rough_string)
-        return reparsed.toprettyxml(indent="  ")
+            messagebox.showerror("Erreur", f"Erreur lors de la génération du SQL: {exc}")
 
     def _list_links(self):
         try:
             self.root.after(0, lambda: self.status_var.set("Récupération des subscriptions..."))
+            self._save_credentials_if_checked()
             session = get_session(self.access_key.get().strip() or None, self.secret_key.get().strip() or None, self.session_token.get().strip() or None, self.profile.get().strip() or None)
             regions = self.parse_regions()
             all_links = []
@@ -581,6 +476,103 @@ class App:
             err = str(exc)
             self.root.after(0, lambda: self.status_var.set("Erreur lors de la récupération"))
             self.root.after(0, lambda err=err: messagebox.showerror("Erreur", f"Erreur lors de la récupération des subscriptions:\n\n{err}"))
+
+    # --- Gestion des identifiants mémorisés ---
+    def _load_saved_credentials(self):
+        try:
+            import keyring  # type: ignore
+        except Exception:
+            return
+        service = "aws-sns-sqs-gui"
+        try:
+            ak = keyring.get_password(service, "aws_access_key_id")
+            sk = keyring.get_password(service, "aws_secret_access_key")
+            st = keyring.get_password(service, "aws_session_token")
+            pf = keyring.get_password(service, "profile")
+            regs = keyring.get_password(service, "regions")
+        except Exception:
+            return
+
+        any_loaded = False
+        if ak:
+            self.access_key.insert(0, ak)
+            any_loaded = True
+        if sk:
+            self.secret_key.insert(0, sk)
+            any_loaded = True
+        if st:
+            self.session_token.insert(0, st)
+            any_loaded = True
+        if pf:
+            self.profile.insert(0, pf)
+            any_loaded = True
+        if regs:
+            self.regions.delete(0, tk.END)
+            self.regions.insert(0, regs)
+            any_loaded = True
+        if any_loaded:
+            self.remember_var.set(True)
+            self.status_var.set("Identifiants chargés depuis le gestionnaire d'identifiants")
+
+    def _save_credentials_if_checked(self):
+        if not getattr(self, "remember_var", None) or not self.remember_var.get():
+            return
+        try:
+            import keyring  # type: ignore
+        except Exception:
+            return
+        service = "aws-sns-sqs-gui"
+        try:
+            ak = (self.access_key.get() or "").strip()
+            sk = (self.secret_key.get() or "").strip()
+            st = (self.session_token.get() or "").strip()
+            pf = (self.profile.get() or "").strip()
+            regs = (self.regions.get() or "").strip()
+
+            # Enregistrer si non vide, sinon supprimer l'entrée
+            def set_or_delete(name, value):
+                try:
+                    if value:
+                        keyring.set_password(service, name, value)
+                    else:
+                        try:
+                            keyring.delete_password(service, name)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            set_or_delete("aws_access_key_id", ak)
+            set_or_delete("aws_secret_access_key", sk)
+            set_or_delete("aws_session_token", st)
+            set_or_delete("profile", pf)
+            set_or_delete("regions", regs)
+        except Exception:
+            pass
+
+    def _clear_saved_credentials(self):
+        try:
+            import keyring  # type: ignore
+        except Exception as exc:
+            self.root.after(0, lambda exc=str(exc): messagebox.showerror("Erreur", f"Impossible d'accéder au gestionnaire d'identifiants:\n\n{exc}"))
+            return
+        service = "aws-sns-sqs-gui"
+        for name in [
+            "aws_access_key_id",
+            "aws_secret_access_key",
+            "aws_session_token",
+            "profile",
+            "regions",
+        ]:
+            try:
+                keyring.delete_password(service, name)
+            except Exception:
+                # Ignorer si l'entrée n'existe pas
+                pass
+        self.root.after(0, lambda: self.status_var.set("Identifiants supprimés du gestionnaire d'identifiants"))
+
+    def clear_saved_credentials_action(self):
+        self.run_in_thread(self._clear_saved_credentials)
 
     def _update_links_list(self, links):
         self.links_list.delete(0, tk.END)
