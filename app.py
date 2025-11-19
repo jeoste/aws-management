@@ -204,6 +204,107 @@ def get_stats():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/monitor", methods=["POST"])
+def monitor():
+    """Real-time monitoring endpoint - returns recent message activity"""
+    data = request.json
+    items = data.get("items", [])
+    
+    # Group by region
+    by_region = {}
+    for item in items:
+        r = item.get("region")
+        if r not in by_region:
+            by_region[r] = []
+        by_region[r].append(item)
+    
+    results = []
+    
+    try:
+        session = get_session(
+            profile=data.get("profile"),
+            access_key=data.get("access_key"),
+            secret_key=data.get("secret_key"),
+            session_token=data.get("session_token")
+        )
+        
+        # Get metrics for the last 5 minutes
+        end_time = datetime.utcnow()
+        start_time = end_time - timedelta(minutes=5)
+        
+        for region, region_items in by_region.items():
+            cw = session.client("cloudwatch", region_name=region)
+            
+            for item in region_items:
+                arn = item.get("arn")
+                rtype = item.get("type")
+                name = item.get("name")
+                
+                try:
+                    if rtype == 'topic':
+                        # SNS: NumberOfMessagesPublished
+                        resp = cw.get_metric_statistics(
+                            Namespace='AWS/SNS',
+                            MetricName='NumberOfMessagesPublished',
+                            Dimensions=[{'Name': 'TopicName', 'Value': name}],
+                            StartTime=start_time,
+                            EndTime=end_time,
+                            Period=60,  # 1-minute granularity
+                            Statistics=['Sum']
+                        )
+                        
+                        for dp in resp.get('Datapoints', []):
+                            if dp['Sum'] > 0:
+                                results.append({
+                                    'timestamp': dp['Timestamp'].isoformat(),
+                                    'type': 'published',
+                                    'resource': name,
+                                    'resource_type': 'topic',
+                                    'arn': arn,
+                                    'count': int(dp['Sum']),
+                                    'region': region
+                                })
+                    
+                    elif rtype == 'queue':
+                        # SQS: NumberOfMessagesSent and NumberOfMessagesReceived
+                        for metric_name, event_type in [
+                            ('NumberOfMessagesSent', 'sent'),
+                            ('NumberOfMessagesReceived', 'received')
+                        ]:
+                            resp = cw.get_metric_statistics(
+                                Namespace='AWS/SQS',
+                                MetricName=metric_name,
+                                Dimensions=[{'Name': 'QueueName', 'Value': name}],
+                                StartTime=start_time,
+                                EndTime=end_time,
+                                Period=60,  # 1-minute granularity
+                                Statistics=['Sum']
+                            )
+                            
+                            for dp in resp.get('Datapoints', []):
+                                if dp['Sum'] > 0:
+                                    results.append({
+                                        'timestamp': dp['Timestamp'].isoformat(),
+                                        'type': event_type,
+                                        'resource': name,
+                                        'resource_type': 'queue',
+                                        'arn': arn,
+                                        'count': int(dp['Sum']),
+                                        'region': region
+                                    })
+                
+                except Exception as e:
+                    # Skip errors for individual resources
+                    pass
+        
+        # Sort by timestamp descending (most recent first)
+        results.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return jsonify(results)
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/export/mermaid", methods=["POST"])
 def export_mermaid():
     inventory = request.json
@@ -258,43 +359,124 @@ def export_drawio():
         style_queue = "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;"
         style_edge = "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;"
 
-        # Track IDs to create edges
-        # Map ARN -> mxCell ID
+        # Build subscription map: topic_arn -> [queue_arns]
+        topic_to_queues = {}
+        all_topics = set()
+        all_queues = set()
+        
+        for item in inventory:
+            for t in item.get("topics", []):
+                all_topics.add(t["arn"])
+                if t["arn"] not in topic_to_queues:
+                    topic_to_queues[t["arn"]] = []
+            
+            for q in item.get("queues", []):
+                all_queues.add(q["arn"])
+            
+            for link in item.get("links", []):
+                topic_arn = link.get("from_arn")
+                queue_arn = link.get("to_arn")
+                if topic_arn and queue_arn:
+                    if topic_arn not in topic_to_queues:
+                        topic_to_queues[topic_arn] = []
+                    topic_to_queues[topic_arn].append(queue_arn)
+        
+        # Find unsubscribed queues
+        subscribed_queues = set()
+        for queues in topic_to_queues.values():
+            subscribed_queues.update(queues)
+        unsubscribed_queues = all_queues - subscribed_queues
+        
+        # Find topics with no subscriptions
+        topics_with_subs = [t for t in all_topics if topic_to_queues.get(t)]
+        topics_without_subs = [t for t in all_topics if not topic_to_queues.get(t)]
+        
+        # Get topic and queue objects
+        topic_map = {}
+        queue_map = {}
+        for item in inventory:
+            for t in item.get("topics", []):
+                topic_map[t["arn"]] = t
+            for q in item.get("queues", []):
+                queue_map[q["arn"]] = q
+        
+        # Layout parameters
         arn_to_id = {}
         current_id = 2
         
-        # Layout parameters
-        topic_x = 40
+        start_x = 40
+        column_width = 200
         topic_y = 40
-        queue_x = 400
-        queue_y = 40
-        gap_y = 80
-
-        # Add Topics
-        for item in inventory:
-            for t in item.get("topics", []):
-                if t["arn"] in arn_to_id: continue
+        queue_start_y = 150
+        queue_spacing_y = 80
+        topic_w = 160
+        topic_h = 60
+        queue_w = 120
+        queue_h = 60
+        
+        current_x = start_x
+        
+        # Layout topics with subscriptions and their queues
+        for topic_arn in topics_with_subs:
+            topic = topic_map.get(topic_arn)
+            if not topic:
+                continue
+            
+            # Add topic
+            xml_parts.append(f'        <mxCell id="{current_id}" value="{topic["name"]}" style="{style_topic}" vertex="1" parent="1">')
+            xml_parts.append(f'          <mxGeometry x="{current_x}" y="{topic_y}" width="{topic_w}" height="{topic_h}" as="geometry" />')
+            xml_parts.append('        </mxCell>')
+            arn_to_id[topic_arn] = current_id
+            current_id += 1
+            
+            # Add subscribed queues below this topic
+            queue_y = queue_start_y
+            for queue_arn in topic_to_queues[topic_arn]:
+                queue = queue_map.get(queue_arn)
+                if not queue or queue_arn in arn_to_id:
+                    continue
                 
-                xml_parts.append(f'        <mxCell id="{current_id}" value="{t["name"]}" style="{style_topic}" vertex="1" parent="1">')
-                xml_parts.append(f'          <mxGeometry x="{topic_x}" y="{topic_y}" width="160" height="60" as="geometry" />')
+                xml_parts.append(f'        <mxCell id="{current_id}" value="{queue["name"]}" style="{style_queue}" vertex="1" parent="1">')
+                xml_parts.append(f'          <mxGeometry x="{current_x}" y="{queue_y}" width="{queue_w}" height="{queue_h}" as="geometry" />')
                 xml_parts.append('        </mxCell>')
-                
-                arn_to_id[t["arn"]] = current_id
+                arn_to_id[queue_arn] = current_id
                 current_id += 1
-                topic_y += gap_y
-
-        # Add Queues
-        for item in inventory:
-            for q in item.get("queues", []):
-                if q["arn"] in arn_to_id: continue
-
-                xml_parts.append(f'        <mxCell id="{current_id}" value="{q["name"]}" style="{style_queue}" vertex="1" parent="1">')
-                xml_parts.append(f'          <mxGeometry x="{queue_x}" y="{queue_y}" width="120" height="60" as="geometry" />')
-                xml_parts.append('        </mxCell>')
-                
-                arn_to_id[q["arn"]] = current_id
-                current_id += 1
-                queue_y += gap_y
+                queue_y += queue_spacing_y
+            
+            # Move to next column
+            current_x += column_width
+        
+        # Add topics without subscriptions
+        for topic_arn in topics_without_subs:
+            topic = topic_map.get(topic_arn)
+            if not topic:
+                continue
+            
+            xml_parts.append(f'        <mxCell id="{current_id}" value="{topic["name"]}" style="{style_topic}" vertex="1" parent="1">')
+            xml_parts.append(f'          <mxGeometry x="{current_x}" y="{topic_y}" width="{topic_w}" height="{topic_h}" as="geometry" />')
+            xml_parts.append('        </mxCell>')
+            arn_to_id[topic_arn] = current_id
+            current_id += 1
+            current_x += column_width
+        
+        # Add unsubscribed queues at the end
+        queue_y = queue_start_y
+        for queue_arn in unsubscribed_queues:
+            queue = queue_map.get(queue_arn)
+            if not queue:
+                continue
+            
+            xml_parts.append(f'        <mxCell id="{current_id}" value="{queue["name"]}" style="{style_queue}" vertex="1" parent="1">')
+            xml_parts.append(f'          <mxGeometry x="{current_x}" y="{queue_y}" width="{queue_w}" height="{queue_h}" as="geometry" />')
+            xml_parts.append('        </mxCell>')
+            arn_to_id[queue_arn] = current_id
+            current_id += 1
+            queue_y += queue_spacing_y
+            
+            # If too many unsubscribed queues, move to next column
+            if queue_y > 600:
+                current_x += column_width
+                queue_y = queue_start_y
 
         # Add Links
         for item in inventory:

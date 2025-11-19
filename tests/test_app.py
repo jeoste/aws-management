@@ -65,11 +65,11 @@ class TestApp(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
         self.assertIn('<mxfile', data['content'])
-        self.assertIn('topic1', data['content'])
-        self.assertIn('queue1', data['content'])
-
-        self.assertIn('topic1', data['content'])
-        self.assertIn('queue1', data['content'])
+        # Check for Topic at top (y=40)
+        self.assertIn('value="topic1"', data['content'])
+        self.assertIn('y="40"', data['content'])
+        # Check for Queue at bottom (y >= 600)
+        self.assertIn('value="queue1"', data['content'])
 
     @patch('app.get_session')
     def test_stats(self, mock_get_session):
@@ -96,7 +96,7 @@ class TestApp(unittest.TestCase):
         result = json.loads(response.data)
         
         self.assertIn("arn:aws:sns:us-east-1:123:topic1", result)
-        self.assertEqual(result["arn:aws:sns:us-east-1:123:topic1"]["published_24h"], 42)
+        self.assertEqual(result["arn:aws:sns:us-east-1:123:topic1"]["published_28d"], 42)
 
 if __name__ == '__main__':
     unittest.main()
