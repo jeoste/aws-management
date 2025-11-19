@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS SNS/SQS Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Mermaid for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 5-5v-5a5 5 0 0 0-5-5Z" />
+                </svg>
+                <span>AWS Manager</span>
+            </div>
+
+            <div class="config-section">
+                <h3>Credentials</h3>
+                <div class="form-group">
+                    <label>Profile</label>
+                    <input type="text" id="profile" placeholder="default">
+                </div>
+                <div class="form-group">
+                    <label>Access Key ID</label>
+                    <input type="text" id="access_key" placeholder="AWS_ACCESS_KEY_ID">
+                </div>
+                <div class="form-group">
+                    <label>Secret Access Key</label>
+                    <input type="password" id="secret_key" placeholder="AWS_SECRET_ACCESS_KEY">
+                </div>
+                <div class="form-group">
+                    <label>Session Token</label>
+                    <input type="password" id="session_token" placeholder="Optional">
+                </div>
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="remember">
+                    <label for="remember">Remember me</label>
+                </div>
+
+                <h3>Regions</h3>
+                <div class="form-group">
+                    <label>AWS Regions (comma-separated)</label>
+                    <input type="text" id="regions" placeholder="us-east-1,eu-west-1">
+                </div>
+
+                <div class="action-buttons">
+                    <button id="test-conn-btn" class="btn btn-secondary">Test Connection</button>
+                    <button id="scan-btn" class="btn btn-primary">Scan Resources</button>
+                    <button id="stats-btn" class="btn btn-secondary">Fetch Stats (4 weeks)</button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <h1>AWS SNS & SQS Resources</h1>
+                    <div class="stats">
+                        <span class="stat-item">Topics: <strong id="count-topics">0</strong></span>
+                        <span class="stat-item">Queues: <strong id="count-queues">0</strong></span>
+                        <span class="stat-item">Links: <strong id="count-links">0</strong></span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button onclick="exportData('json')" class="btn btn-secondary">Export JSON</button>
+                    <button onclick="exportData('sql')" class="btn btn-secondary">Export SQL</button>
+                    <button onclick="exportData('drawio')" class="btn btn-secondary">Export Draw.io</button>
+                </div>
+            </header>
+
+            <div class="status-bar" id="status-bar">Ready</div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('topics')">Topics</button>
+                <button class="tab-btn" onclick="switchTab('queues')">Queues</button>
+                <button class="tab-btn" onclick="switchTab('links')">Subscriptions</button>
+                <button class="tab-btn" onclick="switchTab('diagram')">Diagram</button>
+            </div>
+
+            <div class="tab-content active" id="tab-topics">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Name</th>
+                                <th>ARN</th>
+                                <th>Published (28d)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="list-topics">
+                            <!-- Items will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-queues">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Name</th>
+                                <th>URL</th>
+                                <th>Sent (28d)</th>
+                                <th>Received (28d)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="list-queues">
+                            <!-- Items will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-links">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Topic</th>
+                                <th>Queue</th>
+                            </tr>
+                        </thead>
+                        <tbody id="list-links">
+                            <!-- Items will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-diagram">
+                <div class="mermaid-container">
+                    <div class="mermaid" id="mermaid-graph">
+                        graph TD;
+                        A[Start Scan] --> B[View Results];
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+
+</html>
