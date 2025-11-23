@@ -64,48 +64,52 @@
     <style type="text/tailwindcss">
         @layer base {
             :root {
-                --background: 0 0% 100%;
-                --foreground: 240 10% 3.9%;
+                /* Casa Blanca: #F4ECD8 -> hsl(43, 50%, 90%) */
+                /* Oxford Blue: #002147 -> hsl(212, 100%, 14%) */
+                /* Vintage Blue: #87B8B5 -> hsl(176, 25%, 63%) */
+
+                --background: 43 50% 90%;
+                --foreground: 212 100% 14%;
                 --card: 0 0% 100%;
-                --card-foreground: 240 10% 3.9%;
+                --card-foreground: 212 100% 14%;
                 --popover: 0 0% 100%;
-                --popover-foreground: 240 10% 3.9%;
-                --primary: 240 5.9% 10%;
-                --primary-foreground: 0 0% 98%;
-                --secondary: 240 4.8% 95.9%;
-                --secondary-foreground: 240 5.9% 10%;
-                --muted: 240 4.8% 95.9%;
-                --muted-foreground: 240 3.8% 46.1%;
-                --accent: 240 4.8% 95.9%;
-                --accent-foreground: 240 5.9% 10%;
+                --popover-foreground: 212 100% 14%;
+                --primary: 212 100% 14%;
+                --primary-foreground: 43 50% 90%;
+                --secondary: 176 25% 63%;
+                --secondary-foreground: 212 100% 14%;
+                --muted: 176 25% 90%;
+                --muted-foreground: 212 40% 40%;
+                --accent: 176 25% 63%;
+                --accent-foreground: 212 100% 14%;
                 --destructive: 0 84.2% 60.2%;
                 --destructive-foreground: 0 0% 98%;
-                --border: 240 5.9% 90%;
-                --input: 240 5.9% 90%;
-                --ring: 240 10% 3.9%;
+                --border: 212 30% 80%;
+                --input: 212 30% 80%;
+                --ring: 212 100% 14%;
                 --radius: 0.5rem;
             }
  
             .dark {
-                --background: 222.2 84% 4.9%;
-                --foreground: 210 40% 98%;
-                --card: 222.2 84% 4.9%;
-                --card-foreground: 210 40% 98%;
-                --popover: 222.2 84% 4.9%;
-                --popover-foreground: 210 40% 98%;
-                --primary: 210 40% 98%;
-                --primary-foreground: 222.2 47.4% 11.2%;
-                --secondary: 217.2 32.6% 17.5%;
-                --secondary-foreground: 210 40% 98%;
-                --muted: 217.2 32.6% 17.5%;
-                --muted-foreground: 215 20.2% 65.1%;
-                --accent: 217.2 32.6% 17.5%;
-                --accent-foreground: 210 40% 98%;
+                --background: 212 100% 14%;
+                --foreground: 43 50% 90%;
+                --card: 212 80% 10%;
+                --card-foreground: 43 50% 90%;
+                --popover: 212 80% 10%;
+                --popover-foreground: 43 50% 90%;
+                --primary: 43 50% 90%;
+                --primary-foreground: 212 100% 14%;
+                --secondary: 176 25% 63%;
+                --secondary-foreground: 212 100% 14%;
+                --muted: 212 50% 25%;
+                --muted-foreground: 176 20% 70%;
+                --accent: 176 25% 63%;
+                --accent-foreground: 212 100% 14%;
                 --destructive: 0 62.8% 30.6%;
                 --destructive-foreground: 210 40% 98%;
-                --border: 217.2 32.6% 17.5%;
-                --input: 217.2 32.6% 17.5%;
-                --ring: 212.7 26.8% 83.9%;
+                --border: 212 50% 25%;
+                --input: 212 50% 25%;
+                --ring: 176 25% 63%;
             }
         }
         
@@ -179,9 +183,31 @@
             <div class="space-y-4">
                 <h3 class="text-sm font-medium text-muted-foreground uppercase tracking-wider">Configuration</h3>
                 <div class="space-y-1">
-                    <label class="text-xs font-medium leading-none">Regions (comma-separated)</label>
-                    <input type="text" id="regions" placeholder="us-east-1,eu-west-1"
+                    <label class="text-xs font-medium leading-none">Region</label>
+                    <select id="regions"
                         class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                        <option value="us-east-1">us-east-1 (N. Virginia)</option>
+                        <option value="us-east-2">us-east-2 (Ohio)</option>
+                        <option value="us-west-1">us-west-1 (N. California)</option>
+                        <option value="us-west-2">us-west-2 (Oregon)</option>
+                        <option value="af-south-1">af-south-1 (Cape Town)</option>
+                        <option value="ap-east-1">ap-east-1 (Hong Kong)</option>
+                        <option value="ap-south-1">ap-south-1 (Mumbai)</option>
+                        <option value="ap-northeast-3">ap-northeast-3 (Osaka)</option>
+                        <option value="ap-northeast-2">ap-northeast-2 (Seoul)</option>
+                        <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+                        <option value="ap-southeast-2">ap-southeast-2 (Sydney)</option>
+                        <option value="ap-northeast-1">ap-northeast-1 (Tokyo)</option>
+                        <option value="ca-central-1">ca-central-1 (Canada Central)</option>
+                        <option value="eu-central-1" selected>eu-central-1 (Frankfurt)</option>
+                        <option value="eu-west-1">eu-west-1 (Ireland)</option>
+                        <option value="eu-west-2">eu-west-2 (London)</option>
+                        <option value="eu-south-1">eu-south-1 (Milan)</option>
+                        <option value="eu-west-3">eu-west-3 (Paris)</option>
+                        <option value="eu-north-1">eu-north-1 (Stockholm)</option>
+                        <option value="me-south-1">me-south-1 (Bahrain)</option>
+                        <option value="sa-east-1">sa-east-1 (São Paulo)</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -355,19 +381,38 @@
 
             <!-- Subscriptions Tab -->
             <div id="tab-links" class="tab-content hidden h-full flex flex-col">
-            </div>
-        </div>
-        </div>
-
-        <!-- Diagram Tab -->
-        <div id="tab-diagram" class="tab-content hidden h-full flex flex-col">
-            <div class="rounded-md border h-full overflow-hidden bg-card flex items-center justify-center p-8">
-                <div class="mermaid" id="mermaid-graph">
-                    graph TD;
-                    A[Start Scan] --> B[View Results];
+                <div class="rounded-md border h-full overflow-hidden flex flex-col bg-card">
+                    <div class="overflow-auto flex-1">
+                        <table class="w-full caption-bottom text-sm">
+                            <thead class="[&_tr]:border-b">
+                                <tr class="border-b transition-colors hover:bg-muted/50">
+                                    <th
+                                        class="h-10 px-4 text-left align-middle font-medium text-muted-foreground w-[100px]">
+                                        Region</th>
+                                    <th
+                                        class="h-10 px-4 text-left align-middle font-medium text-muted-foreground w-[300px]">
+                                        Topic</th>
+                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                                        Subscribed Queues</th>
+                                </tr>
+                            </thead>
+                            <tbody id="list-links" class="[&_tr:last-child]:border-0">
+                                <!-- Items injected here -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <!-- Diagram Tab -->
+            <div id="tab-diagram" class="tab-content hidden h-full flex flex-col">
+                <div class="rounded-md border h-full overflow-hidden bg-card flex items-center justify-center p-8">
+                    <div class="mermaid" id="mermaid-graph">
+                        graph TD;
+                        A[Start Scan] --> B[View Results];
+                    </div>
+                </div>
+            </div>
 
         </div>
     </main>

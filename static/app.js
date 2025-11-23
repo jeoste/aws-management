@@ -32,30 +32,117 @@ function setStatus(msg, type = 'normal') {
     el.className = `px-6 py-2 text-xs border-b bg-muted/20 flex items-center ${type === 'error' ? 'text-destructive' : 'text-muted-foreground'}`;
 }
 
-function switchTab(tabName) {
-    // Hide all contents
-    document.querySelectorAll('.tab-content').forEach(el => {
-        el.classList.add('hidden');
-    });
-    // Show target
-    const target = document.getElementById(`tab-${tabName}`);
-    if (target) target.classList.remove('hidden');
-
-    // Update buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        // Reset to inactive state
-        btn.classList.remove('bg-background', 'text-foreground', 'shadow-sm');
-        btn.classList.add('hover:text-foreground');
-
-        if (btn.dataset.tab === tabName) {
-            // Set active state
-            btn.classList.add('bg-background', 'text-foreground', 'shadow-sm');
-            btn.classList.remove('hover:text-foreground');
-        }
-    });
+async function loadCredentials() {
+    try {
+        const res = await fetch('/api/credentials');
+        const data = await res.json();
+        
+        if (data.access_key) document.getElementById('access_key').value = data.access_key;
+        if (data.secret_key) document.getElementById('secret_key').value = data.secret_key;
+        if (data.session_token) document.getElementById('session_token').value = data.session_token;
+        if (data.profile) document.getElementById('profile').value = data.profile;
+        if (data.regions) document.getElementById('regions').value = data.regions;
+        if (data.remember) document.getElementById('remember').checked = true;
+    } catch (e) {
+        console.error("Failed to load credentials", e);
+    }
 }
 
-// ... existing code ...
+async function testConnection() {
+    const btn = document.getElementById('test-conn-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader-2" class="mr-2 h-4 w-4 animate-spin"></i> Testing...';
+    lucide.createIcons();
+
+    const data = {
+        access_key: document.getElementById('access_key').value,
+        secret_key: document.getElementById('secret_key').value,
+        session_token: document.getElementById('session_token').value,
+        profile: document.getElementById('profile').value
+    };
+
+    try {
+        const res = await fetch('/api/test-connection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            setStatus(`Connected: ${result.arn}`, 'success');
+        } else {
+            setStatus(`Connection failed: ${result.error}`, 'error');
+        }
+    } catch (e) {
+        setStatus(`Connection error: ${e}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        lucide.createIcons();
+    }
+}
+
+async function scanResources() {
+    const btn = document.getElementById('scan-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader-2" class="mr-2 h-4 w-4 animate-spin"></i> Scanning...';
+    lucide.createIcons();
+
+    const data = {
+        access_key: document.getElementById('access_key').value,
+        secret_key: document.getElementById('secret_key').value,
+        session_token: document.getElementById('session_token').value,
+        profile: document.getElementById('profile').value,
+        regions: document.getElementById('regions').value,
+        remember: document.getElementById('remember').checked
+    };
+
+    // Save credentials if remember is checked
+    await fetch('/api/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+
+    try {
+        const res = await fetch('/api/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const inventory = await res.json();
+        
+        if (inventory.error) {
+            setStatus(`Scan failed: ${inventory.error}`, 'error');
+        } else {
+            // Flatten inventory
+            currentInventory.topics = [];
+            currentInventory.queues = [];
+            currentInventory.links = [];
+            window.rawInventory = inventory; // Store raw for export
+
+            inventory.forEach(regionItem => {
+                const r = regionItem.region;
+                regionItem.topics.forEach(t => currentInventory.topics.push({...t, region: r}));
+                regionItem.queues.forEach(q => currentInventory.queues.push({...q, region: r}));
+                regionItem.links.forEach(l => currentInventory.links.push({...l, region: r}));
+            });
+
+            updateTables();
+            updateDiagram(inventory);
+            setStatus(`Scan complete. Found ${currentInventory.topics.length} topics and ${currentInventory.queues.length} queues.`, 'success');
+        }
+    } catch (e) {
+        setStatus(`Scan error: ${e}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        lucide.createIcons();
+    }
+}
 
 function updateTables() {
     // Update Counts
@@ -98,7 +185,7 @@ function updateTables() {
 
     // Update Links (Grouped by Topic)
     const linksBody = document.getElementById('list-links');
-
+    
     // Group links by Topic ARN (or Name + Region)
     const groupedLinks = {};
     currentInventory.links.forEach(l => {
