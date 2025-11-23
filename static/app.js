@@ -265,38 +265,7 @@ function updateTables() {
         </tr>
     `).join('');
 
-    updateRealtimeTopicList();
     updateRealtimeQueueList();
-}
-
-function updateRealtimeTopicList() {
-    const container = document.getElementById('realtime-topic-list');
-    if (!container) return;
-
-    if (currentInventory.topics.length === 0) {
-        container.innerHTML = '<div class="text-xs text-muted-foreground">Scan resources first to see available topics</div>';
-        return;
-    }
-
-    container.innerHTML = '';
-    currentInventory.topics.forEach(topic => {
-        const label = document.createElement('label');
-        label.className = 'flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-background hover:bg-accent cursor-pointer transition-colors';
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.value = topic.arn;
-        checkbox.className = 'h-4 w-4 rounded border-primary';
-        checkbox.checked = true; // Check all by default
-
-        const span = document.createElement('span');
-        span.className = 'text-sm';
-        span.textContent = topic.name;
-
-        label.appendChild(checkbox);
-        label.appendChild(span);
-        container.appendChild(label);
-    });
 }
 
 function updateRealtimeQueueList() {
@@ -485,6 +454,8 @@ function downloadFile(filename, content) {
 // Real-time monitoring
 let realtimeInterval = null;
 let isMonitoring = false;
+let lastPollTime = null;
+let pollCount = 0;
 
 function toggleRealtime() {
     const button = document.getElementById('realtime-toggle');
@@ -495,6 +466,8 @@ function toggleRealtime() {
         clearInterval(realtimeInterval);
         realtimeInterval = null;
         isMonitoring = false;
+        pollCount = 0;
+        lastPollTime = null;
     statusText.textContent = 'Start Monitoring';
     setToggleIcon(button, 'play');
         // Switch button color back to primary (blue)
@@ -525,9 +498,13 @@ function toggleRealtime() {
         button.style.color = '#ffffff';
         lucide.createIcons();
 
-        // Poll for messages every 2 seconds
+        // Reset counters
+        lastPollTime = new Date();
+        pollCount = 0;
+        
+        // Poll for messages every 3 seconds (adjusted to match backend 5s long-polling)
         fetchRealtimeMessages();
-        realtimeInterval = setInterval(fetchRealtimeMessages, 2000);
+        realtimeInterval = setInterval(fetchRealtimeMessages, 3000);
     }
 }
 
@@ -550,45 +527,25 @@ async function fetchRealtimeMessages() {
     }
 
     // Prepare items list for monitoring
-    const selectedTopicArns = getSelectedTopics();
     const selectedQueueArns = getSelectedQueues();
 
-    if (selectedTopicArns.length === 0 && selectedQueueArns.length === 0) {
+    if (selectedQueueArns.length === 0) {
         log.innerHTML = `
             <div class="text-muted-foreground text-center py-8">
-                Please select at least one topic or queue to monitor
+                <div class="text-2xl mb-2">🔍</div>
+                <div class="font-semibold mb-2">Aucune ressource sélectionnée</div>
+                <div class="text-xs">Sélectionnez au moins une queue pour commencer la surveillance</div>
             </div>
         `;
         return;
     }
 
     const items = [];
-    // Only add selected topics
-    currentInventory.topics.forEach(t => {
-        if (selectedTopicArns.includes(t.arn)) {
-            items.push({ arn: t.arn, name: t.name, region: t.region, type: 'topic' });
-        }
-    });
 
-    // Also add explicitly selected queues
+    // Only monitor queues explicitly selected
     currentInventory.queues.forEach(q => {
         if (selectedQueueArns.includes(q.arn)) {
-            if (!items.find(i => i.arn === q.arn)) {
-                items.push({ arn: q.arn, name: q.name, region: q.region, type: 'queue' });
-            }
-        }
-    });
-
-    // Add queues subscribed to selected topics
-    currentInventory.links.forEach(link => {
-        if (selectedTopicArns.includes(link.from_arn)) {
-            const queue = currentInventory.queues.find(q => q.arn === link.to_arn);
-            if (queue) {
-                // Avoid duplicates if queue is subscribed to multiple selected topics
-                if (!items.find(i => i.arn === queue.arn)) {
-                    items.push({ arn: queue.arn, name: queue.name, region: queue.region, type: 'queue' });
-                }
-            }
+            items.push({ arn: q.arn, name: q.name, region: q.region, type: 'queue' });
         }
     });
 
@@ -625,18 +582,39 @@ async function fetchRealtimeMessages() {
         if (messages.length > 0) {
             messages.forEach(msg => {
                 const timestamp = new Date(msg.timestamp).toLocaleTimeString();
-                const bodyHtml = msg.body ? `<div class="mt-1 text-sm text-muted-foreground">${escapeHtml(msg.body)}</div>` : '';
-                const countHtml = msg.count ? `<span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">${msg.count} msg</span>` : '';
+                const msgId = msg.message_id ? `<span class="text-xs text-muted-foreground ml-2">ID: ${msg.message_id.substring(0, 8)}...</span>` : '';
+                const bodyHtml = msg.body ? `<div class="mt-1 text-sm text-muted-foreground font-mono bg-muted/30 p-2 rounded">${escapeHtml(msg.body)}</div>` : '';
+                
+                // Color code based on type
+                let typeColor = 'bg-blue-500/10 text-blue-500';
+                let typeIcon = '📨';
+                if (msg.type === 'message') {
+                    typeColor = 'bg-green-500/10 text-green-500';
+                    typeIcon = '✉️';
+                } else if (msg.type === 'error') {
+                    typeColor = 'bg-red-500/10 text-red-500';
+                    typeIcon = '⚠️';
+                } else if (msg.type === 'sent') {
+                    typeColor = 'bg-yellow-500/10 text-yellow-500';
+                    typeIcon = '📤';
+                } else if (msg.type === 'received') {
+                    typeColor = 'bg-purple-500/10 text-purple-500';
+                    typeIcon = '📥';
+                }
+                
                 const messageHtml = `
-                    <div class="flex flex-col gap-1 p-2 rounded bg-muted/50 border border-border/50">
+                    <div class="flex flex-col gap-1 p-3 rounded bg-muted/50 border border-border/50 mb-2">
                         <div class="flex items-start gap-2">
-                            <div class="text-muted-foreground text-xs">${timestamp}</div>
-                            <div class="flex-1">
-                                <span class="text-primary font-medium">${msg.resource}</span>
-                                <span class="text-xs text-muted-foreground mx-1">(${msg.type})</span>
-                                ${countHtml}
+                            <span class="text-lg">${typeIcon}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-primary font-medium">${msg.resource}</span>
+                                    <span class="text-xs ${typeColor} px-2 py-0.5 rounded font-semibold">${msg.type.toUpperCase()}</span>
+                                    <span class="text-xs text-muted-foreground">${msg.region}</span>
+                                    ${msgId}
+                                </div>
+                                <div class="text-xs text-muted-foreground mt-0.5">${timestamp}</div>
                             </div>
-                            <div class="text-xs text-muted-foreground">${msg.region}</div>
                         </div>
                         ${bodyHtml}
                     </div>
@@ -648,9 +626,42 @@ async function fetchRealtimeMessages() {
 
             lucide.createIcons();
 
-            // Keep only last 50 messages
-            while (log.children.length > 50) {
+            // Keep only last 100 messages
+            while (log.children.length > 100) {
                 log.removeChild(log.lastChild);
+            }
+        } else {
+            // No new messages, but monitoring is active
+            pollCount++;
+            lastPollTime = new Date();
+            
+            // Add status message to indicate monitoring is working
+            if (log.children.length === 0) {
+                // First poll with no messages
+                log.innerHTML = `
+                    <div class="text-muted-foreground text-center py-8">
+                        <div class="text-2xl mb-2">👀</div>
+                        <div>Surveillance active - en attente de messages...</div>
+                        <div class="text-xs mt-2">Polling #${pollCount} - ${lastPollTime.toLocaleTimeString()}</div>
+                        <div class="text-xs mt-1">Les messages apparaîtront ici dès leur réception</div>
+                    </div>
+                `;
+            } else {
+                // Update status at the bottom if messages exist
+                const existingStatus = log.querySelector('.poll-status-indicator');
+                if (existingStatus) {
+                    existingStatus.remove();
+                }
+                
+                // Only show status every 5 polls to avoid spam
+                if (pollCount % 5 === 0) {
+                    const statusHtml = `
+                        <div class="poll-status-indicator text-xs text-muted-foreground text-center py-2 border-t border-border/50 mt-2">
+                            ⏱️ Monitoring actif - Dernier poll: ${lastPollTime.toLocaleTimeString()} (${pollCount} polls)
+                        </div>
+                    `;
+                    log.insertAdjacentHTML('beforeend', statusHtml);
+                }
             }
         }
     } catch (e) {

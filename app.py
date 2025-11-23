@@ -206,11 +206,9 @@ def get_stats():
 
 @app.route("/api/monitor", methods=["POST"])
 def monitor():
-    """Real-time monitoring endpoint - returns recent message activity"""
+    """Real-time monitoring endpoint - polls SQS queues directly for instant messages"""
     data = request.json
     items = data.get("items", [])
-    # Optional: whether to attempt to peek SQS messages (receive then reset visibility)
-    fetch_messages = bool(data.get("fetch_messages", False))
     
     # Group by region
     by_region = {}
@@ -230,124 +228,108 @@ def monitor():
             session_token=data.get("session_token")
         )
         
-        # Get metrics for the last 5 minutes
-        end_time = datetime.utcnow()
-        start_time = end_time - timedelta(minutes=5)
-        
         for region, region_items in by_region.items():
-            cw = session.client("cloudwatch", region_name=region)
+            sqs = session.client('sqs', region_name=region)
             
             for item in region_items:
                 arn = item.get("arn")
                 rtype = item.get("type")
                 name = item.get("name")
                 
+                # Only poll queues (not topics, as topics don't store messages)
+                if rtype != 'queue':
+                    continue
+                
                 try:
-                    if rtype == 'topic':
-                        # SNS: NumberOfMessagesPublished
-                        resp = cw.get_metric_statistics(
-                            Namespace='AWS/SNS',
-                            MetricName='NumberOfMessagesPublished',
-                            Dimensions=[{'Name': 'TopicName', 'Value': name}],
-                            StartTime=start_time,
-                            EndTime=end_time,
-                            Period=60,  # 1-minute granularity
-                            Statistics=['Sum']
-                        )
-                        
-                        for dp in resp.get('Datapoints', []):
-                            if dp['Sum'] > 0:
-                                results.append({
-                                    'timestamp': dp['Timestamp'].isoformat(),
-                                    'type': 'published',
-                                    'resource': name,
-                                    'resource_type': 'topic',
-                                    'arn': arn,
-                                    'count': int(dp['Sum']),
-                                    'region': region
-                                })
-                    # If client requested message peeking, also attempt to find any SQS messages
-                    # for queues that may be subscribed to this topic. We skip this here for topics.
-                    
-                    elif rtype == 'queue':
-                        # SQS: NumberOfMessagesSent and NumberOfMessagesReceived
-                        for metric_name, event_type in [
-                            ('NumberOfMessagesSent', 'sent'),
-                            ('NumberOfMessagesReceived', 'received')
-                        ]:
-                            resp = cw.get_metric_statistics(
-                                Namespace='AWS/SQS',
-                                MetricName=metric_name,
-                                Dimensions=[{'Name': 'QueueName', 'Value': name}],
-                                StartTime=start_time,
-                                EndTime=end_time,
-                                Period=60,  # 1-minute granularity
-                                Statistics=['Sum']
-                            )
-                            
-                            for dp in resp.get('Datapoints', []):
-                                if dp['Sum'] > 0:
-                                    results.append({
-                                        'timestamp': dp['Timestamp'].isoformat(),
-                                        'type': event_type,
-                                        'resource': name,
-                                        'resource_type': 'queue',
-                                        'arn': arn,
-                                        'count': int(dp['Sum']),
-                                        'region': region
-                                    })
-                    # If requested, attempt to peek actual SQS messages for this queue
-                    if fetch_messages:
+                    # Get queue URL from ARN
+                    queue_url = None
+                    if arn and arn.startswith('arn:') and ':sqs:' in arn:
                         try:
-                            sqs = session.client('sqs', region_name=region)
-                            # Try to get queue URL if arn provided
-                            queue_url = None
-                            # If arn looks like arn:aws:sqs:region:acct:QueueName, try to resolve URL
-                            if arn and arn.startswith('arn:') and ':sqs:' in arn:
-                                try:
-                                    qname = arn.split(':')[-1]
-                                    resp_q = sqs.get_queue_url(QueueName=qname)
-                                    queue_url = resp_q.get('QueueUrl')
-                                except Exception:
-                                    queue_url = None
-                            # If queue_url still None, attempt to find by listing (fallback)
-                            if not queue_url:
-                                try:
-                                    resp_list = sqs.list_queues(QueueNamePrefix=name)
-                                    urls = resp_list.get('QueueUrls', []) or []
-                                    if urls:
-                                        queue_url = urls[0]
-                                except Exception:
-                                    queue_url = None
-
-                            if queue_url:
-                                # Receive messages non-destructively: receive then reset visibility to 0
-                                rm = sqs.receive_message(QueueUrl=queue_url, MaxNumberOfMessages=5, WaitTimeSeconds=0)
-                                for m in rm.get('Messages', []) or []:
-                                    results.append({
-                                        'timestamp': datetime.utcnow().isoformat(),
-                                        'type': 'sqs_message',
-                                        'resource': name,
-                                        'resource_type': 'queue',
-                                        'arn': arn,
-                                        'count': 1,
-                                        'region': region,
-                                        'body': m.get('Body')
-                                    })
-                                    # Try to make the message visible again quickly
-                                    try:
-                                        sqs.change_message_visibility(QueueUrl=queue_url, ReceiptHandle=m.get('ReceiptHandle'), VisibilityTimeout=0)
-                                    except Exception:
-                                        pass
+                            qname = arn.split(':')[-1]
+                            resp_q = sqs.get_queue_url(QueueName=qname)
+                            queue_url = resp_q.get('QueueUrl')
                         except Exception:
-                            pass
+                            # Fallback: try listing
+                            try:
+                                resp_list = sqs.list_queues(QueueNamePrefix=name)
+                                urls = resp_list.get('QueueUrls', []) or []
+                                if urls:
+                                    queue_url = urls[0]
+                            except Exception:
+                                pass
+                    
+                    if not queue_url:
+                        continue
+                    
+                    # Poll SQS with long-polling (5 seconds) for better efficiency
+                    resp = sqs.receive_message(
+                        QueueUrl=queue_url,
+                        MaxNumberOfMessages=10,
+                        WaitTimeSeconds=5,  # Increased to 5s for better long-polling
+                        AttributeNames=['SentTimestamp', 'ApproximateReceiveCount'],
+                        MessageAttributeNames=['All']
+                    )
+                    
+                    messages = resp.get('Messages', [])
+                    
+                    if messages:
+                        for msg in messages:
+                            # Extract message body
+                            body = msg.get('Body', '')
+                            msg_id = msg.get('MessageId', '')
+                            receipt = msg.get('ReceiptHandle', '')
+                            
+                            # Get sent timestamp if available
+                            sent_ts = msg.get('Attributes', {}).get('SentTimestamp')
+                            if sent_ts:
+                                try:
+                                    # Convert milliseconds to ISO format
+                                    ts = datetime.fromtimestamp(int(sent_ts) / 1000.0)
+                                    timestamp = ts.isoformat()
+                                except:
+                                    timestamp = datetime.utcnow().isoformat()
+                            else:
+                                timestamp = datetime.utcnow().isoformat()
+                            
+                            results.append({
+                                'timestamp': timestamp,
+                                'type': 'message',
+                                'resource': name,
+                                'resource_type': 'queue',
+                                'arn': arn,
+                                'count': 1,
+                                'region': region,
+                                'message_id': msg_id,
+                                'body': body[:500]  # Limit body to 500 chars for UI
+                            })
+                            
+                            # Make message visible again immediately (non-destructive read)
+                            try:
+                                sqs.change_message_visibility(
+                                    QueueUrl=queue_url,
+                                    ReceiptHandle=receipt,
+                                    VisibilityTimeout=0
+                                )
+                            except Exception as change_vis_err:
+                                # If change visibility fails, the message might have been deleted
+                                # This is normal if queue was purged or message deleted manually
+                                pass
                 
                 except Exception as e:
-                    # Skip errors for individual resources
-                    pass
+                    # Log error but continue with other queues
+                    results.append({
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'type': 'error',
+                        'resource': name,
+                        'resource_type': 'queue',
+                        'arn': arn,
+                        'count': 0,
+                        'region': region,
+                        'body': f'Error polling queue: {str(e)}'
+                    })
         
         # Sort by timestamp descending (most recent first)
-        results.sort(key=lambda x: x['timestamp'], reverse=True)
+        results.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
         return jsonify(results)
     
