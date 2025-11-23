@@ -5,6 +5,7 @@ import argparse
 import getpass
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional
 
@@ -83,13 +84,31 @@ def list_topics(sns_client) -> List[Topic]:
 
 def list_queues(sqs_client) -> List[Queue]:
     queues: List[Queue] = []
+    queue_urls: List[str] = []
+    
+    # First, collect all queue URLs
     paginator = sqs_client.get_paginator("list_queues")
     for page in paginator.paginate():
-        for url in page.get("QueueUrls", []) or []:
-            attrs = sqs_client.get_queue_attributes(QueueUrl=url, AttributeNames=["QueueArn"])
-            arn = attrs.get("Attributes", {}).get("QueueArn", "")
-            name = url.rsplit("/", 1)[-1]
-            queues.append(Queue(arn=arn, url=url, name=name))
+        queue_urls.extend(page.get("QueueUrls", []) or [])
+    
+    # Parallelize get_queue_attributes calls
+    def get_queue_info(url: str) -> Queue:
+        attrs = sqs_client.get_queue_attributes(QueueUrl=url, AttributeNames=["QueueArn"])
+        arn = attrs.get("Attributes", {}).get("QueueArn", "")
+        name = url.rsplit("/", 1)[-1]
+        return Queue(arn=arn, url=url, name=name)
+    
+    # Use ThreadPoolExecutor to fetch queue attributes in parallel
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(get_queue_info, url): url for url in queue_urls}
+        for future in as_completed(futures):
+            try:
+                queue = future.result()
+                queues.append(queue)
+            except Exception as e:
+                # Skip queues that fail to fetch attributes
+                pass
+    
     return queues
 
 
@@ -109,37 +128,64 @@ def list_links_sns_to_sqs(sns_client, topics: List[Topic]) -> List[Link]:
     return links
 
 
-def build_inventory(session: boto3.Session, regions: List[str]) -> List[Dict[str, object]]:
-    inventory: List[Dict[str, object]] = []
-    # Import botocore.config.Config locally to avoid top-level import dependency
+def fetch_region_inventory(session: boto3.Session, region: str) -> Dict[str, object]:
+    """Fetch inventory for a single region with parallel API calls."""
     from botocore.config import Config  # type: ignore
+    
+    config = Config(retries={"max_attempts": 5, "mode": "standard"})
+    sns = session.client("sns", region_name=region, config=config)
+    sqs = session.client("sqs", region_name=region, config=config)
+    
+    # Parallelize topics and queues fetching
+    topics: List[Topic] = []
+    queues: List[Queue] = []
+    
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        future_topics = executor.submit(list_topics, sns)
+        future_queues = executor.submit(list_queues, sqs)
+        
+        topics = future_topics.result()
+        queues = future_queues.result()
+    
+    # Fetch links after we have topics
+    links = list_links_sns_to_sqs(sns, topics)
+    
+    # Déterminer accountId depuis un ARN existant si possible
+    account_id: Optional[str] = None
+    candidate_arn = (topics[0].arn if topics else (queues[0].arn if queues else None))
+    if candidate_arn:
+        parts = candidate_arn.split(":")
+        if len(parts) >= 5:
+            account_id = parts[4]
+    
+    return {
+        "region": region,
+        "accountId": account_id,
+        "topics": [asdict(t) for t in topics],
+        "queues": [asdict(q) for q in queues],
+        "links": [asdict(l) for l in links],
+    }
 
-    for region in regions:
-        config = Config(retries={"max_attempts": 5, "mode": "standard"})
-        sns = session.client("sns", region_name=region, config=config)
-        sqs = session.client("sqs", region_name=region, config=config)
 
-        topics = list_topics(sns)
-        queues = list_queues(sqs)
-        links = list_links_sns_to_sqs(sns, topics)
-
-        # Déterminer accountId depuis un ARN existant si possible
-        account_id: Optional[str] = None
-        candidate_arn = (topics[0].arn if topics else (queues[0].arn if queues else None))
-        if candidate_arn:
-            parts = candidate_arn.split(":")
-            if len(parts) >= 5:
-                account_id = parts[4]
-
-        inventory.append(
-            {
-                "region": region,
-                "accountId": account_id,
-                "topics": [asdict(t) for t in topics],
-                "queues": [asdict(q) for q in queues],
-                "links": [asdict(l) for l in links],
-            }
-        )
+def build_inventory(session: boto3.Session, regions: List[str]) -> List[Dict[str, object]]:
+    """Build inventory for multiple regions in parallel."""
+    inventory: List[Dict[str, object]] = []
+    
+    # Parallelize across regions
+    max_workers = min(len(regions), 10)  # Limit to avoid throttling
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(fetch_region_inventory, session, region): region for region in regions}
+        
+        for future in as_completed(futures):
+            region = futures[future]
+            try:
+                region_inventory = future.result()
+                inventory.append(region_inventory)
+            except Exception as e:
+                # Log error but continue with other regions
+                print(f"Error fetching inventory for region {region}: {e}", file=sys.stderr)
+    
     return inventory
 
 

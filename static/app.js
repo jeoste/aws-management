@@ -220,6 +220,43 @@ function updateTables() {
             </td>
         </tr>
     `).join('');
+
+    updateRealtimeTopicList();
+}
+
+function updateRealtimeTopicList() {
+    const container = document.getElementById('realtime-topic-list');
+    if (!container) return;
+
+    if (currentInventory.topics.length === 0) {
+        container.innerHTML = '<div class="text-xs text-muted-foreground">Scan resources first to see available topics</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    currentInventory.topics.forEach(topic => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-background hover:bg-accent cursor-pointer transition-colors';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = topic.arn;
+        checkbox.className = 'h-4 w-4 rounded border-primary';
+        checkbox.checked = true; // Check all by default
+
+        const span = document.createElement('span');
+        span.className = 'text-sm';
+        span.textContent = topic.name;
+
+        label.appendChild(checkbox);
+        label.appendChild(span);
+        container.appendChild(label);
+    });
+}
+
+function getSelectedTopics() {
+    const checkboxes = document.querySelectorAll('#realtime-topic-list input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
 }
 
 async function updateDiagram(inventoryList) {
@@ -361,29 +398,72 @@ function toggleRealtime() {
 }
 
 async function fetchRealtimeMessages() {
-    // This is a placeholder - you'll need to implement the backend endpoint
-    // For now, we'll simulate some messages
     const log = document.getElementById('realtime-log');
 
-    // Simulate message activity
-    const timestamp = new Date().toLocaleTimeString();
-    const topics = currentInventory.topics.map(t => t.name);
-    const queues = currentInventory.queues.map(q => q.name);
-
-    if (topics.length > 0 && queues.length > 0) {
-        const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-        const randomQueue = queues[Math.floor(Math.random() * queues.length)];
-
-        const messageHtml = `
-            <div class="flex items-start gap-2 p-2 rounded bg-muted/50 border border-border/50">
-                <div class="text-muted-foreground">${timestamp}</div>
-                <div class="flex-1">
-                    <span class="text-primary font-medium">${randomTopic}</span>
-                    <i data-lucide="arrow-right" class="inline h-3 w-3 mx-1"></i>
-                    <span class="text-secondary font-medium">${randomQueue}</span>
-                </div>
+    // Check if we have scanned resources
+    if (currentInventory.topics.length === 0 && currentInventory.queues.length === 0) {
+        log.innerHTML = `
+            <div class="text-muted-foreground text-center py-8">
+                Please scan resources first before monitoring
             </div>
         `;
+        return;
+    }
+
+    // Prepare items list for monitoring
+    const selectedTopicArns = getSelectedTopics();
+
+    if (selectedTopicArns.length === 0) {
+        log.innerHTML = `
+            <div class="text-muted-foreground text-center py-8">
+                Please select at least one topic to monitor
+            </div>
+        `;
+        return;
+    }
+
+    const items = [];
+    // Only add selected topics
+    currentInventory.topics.forEach(t => {
+        if (selectedTopicArns.includes(t.arn)) {
+            items.push({ arn: t.arn, name: t.name, region: t.region, type: 'topic' });
+        }
+    });
+
+    // Add queues subscribed to selected topics
+    currentInventory.links.forEach(link => {
+        if (selectedTopicArns.includes(link.from_arn)) {
+            const queue = currentInventory.queues.find(q => q.arn === link.to_arn);
+            if (queue) {
+                // Avoid duplicates if queue is subscribed to multiple selected topics
+                if (!items.find(i => i.arn === queue.arn)) {
+                    items.push({ arn: queue.arn, name: queue.name, region: queue.region, type: 'queue' });
+                }
+            }
+        }
+    });
+
+    const data = {
+        access_key: document.getElementById('access_key').value,
+        secret_key: document.getElementById('secret_key').value,
+        session_token: document.getElementById('session_token').value,
+        profile: document.getElementById('profile').value,
+        items: items
+    };
+
+    try {
+        const res = await fetch('/api/monitor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const messages = await res.json();
+
+        if (messages.error) {
+            console.error('Monitoring error:', messages.error);
+            return;
+        }
 
         // Remove placeholder if it exists
         const placeholder = log.querySelector('.text-center');
@@ -391,14 +471,35 @@ async function fetchRealtimeMessages() {
             log.innerHTML = '';
         }
 
-        // Add new message at the top
-        log.insertAdjacentHTML('afterbegin', messageHtml);
-        lucide.createIcons();
+        // Display new messages
+        if (messages.length > 0) {
+            messages.forEach(msg => {
+                const timestamp = new Date(msg.timestamp).toLocaleTimeString();
+                const messageHtml = `
+                    <div class="flex items-start gap-2 p-2 rounded bg-muted/50 border border-border/50">
+                        <div class="text-muted-foreground text-xs">${timestamp}</div>
+                        <div class="flex-1">
+                            <span class="text-primary font-medium">${msg.resource}</span>
+                            <span class="text-xs text-muted-foreground mx-1">(${msg.type})</span>
+                            <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">${msg.count} msg</span>
+                        </div>
+                        <div class="text-xs text-muted-foreground">${msg.region}</div>
+                    </div>
+                `;
 
-        // Keep only last 50 messages
-        while (log.children.length > 50) {
-            log.removeChild(log.lastChild);
+                // Add new message at the top
+                log.insertAdjacentHTML('afterbegin', messageHtml);
+            });
+
+            lucide.createIcons();
+
+            // Keep only last 50 messages
+            while (log.children.length > 50) {
+                log.removeChild(log.lastChild);
+            }
         }
+    } catch (e) {
+        console.error('Failed to fetch realtime messages:', e);
     }
 }
 
