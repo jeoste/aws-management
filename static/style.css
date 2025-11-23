@@ -1,274 +1,48 @@
-:root {
-    --bg-dark: #0f172a;
-    --bg-card: #1e293b;
-    --bg-hover: #334155;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --accent: #38bdf8;
-    --accent-hover: #0ea5e9;
-    --border: #334155;
-    --success: #22c55e;
-    --error: #ef4444;
-}
+/* Custom overrides that Tailwind doesn't cover easily or for specific library needs */
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-body {
-    font-family: 'Inter', sans-serif;
-    background-color: var(--bg-dark);
-    color: var(--text-primary);
-    height: 100vh;
-    overflow: hidden;
-}
-
-.app-container {
-    display: flex;
+/* Mermaid container adjustments */
+.mermaid {
+    width: 100%;
     height: 100%;
-}
-
-/* Sidebar */
-.sidebar {
-    width: 300px;
-    background-color: var(--bg-card);
-    border-right: 1px solid var(--border);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-    overflow-y: auto;
-}
-
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--accent);
-}
-
-.config-section h3 {
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-    margin-bottom: 1rem;
-}
-
-.form-group {
-    margin-bottom: 1rem;
-}
-
-.form-group label {
-    display: block;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-}
-
-.form-group input[type="text"],
-.form-group input[type="password"] {
-    width: 100%;
-    padding: 0.5rem;
-    background-color: var(--bg-dark);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-family: inherit;
-}
-
-.form-group input:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-
-.form-group.checkbox {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.form-group.checkbox label {
-    margin-bottom: 0;
-}
-
-/* Buttons */
-.btn {
-    width: 100%;
-    padding: 0.6rem 1rem;
-    border-radius: 4px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: none;
-    font-family: inherit;
-}
-
-.btn.primary {
-    background-color: var(--accent);
-    color: var(--bg-dark);
-}
-
-.btn.primary:hover {
-    background-color: var(--accent-hover);
-}
-
-.btn.secondary {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
-}
-
-.btn.secondary:hover {
-    background-color: var(--border);
-}
-
-.btn.outline {
-    background-color: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    width: auto;
-}
-
-.btn.outline:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-/* Main Content */
-.main-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.top-bar {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.top-bar h1 {
-    font-size: 1.5rem;
-    font-weight: 500;
-}
-
-.actions {
-    display: flex;
-    gap: 0.75rem;
-}
-
-/* Tabs */
-.tabs {
-    padding: 0 1.5rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 1.5rem;
-}
-
-.tab-btn {
-    background: none;
-    border: none;
-    padding: 1rem 0;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-family: inherit;
-    font-weight: 500;
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.tab-btn:hover {
-    color: var(--text-primary);
-}
-
-.tab-btn.active {
-    color: var(--accent);
-}
-
-.tab-btn.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background-color: var(--accent);
-}
-
-.badge {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
-    padding: 0.1rem 0.4rem;
-    border-radius: 10px;
-    font-size: 0.75rem;
-}
-
-/* Tab Content */
-.tab-content {
-    display: none;
-    flex: 1;
-    overflow: hidden;
-    padding: 1.5rem;
-}
-
-.tab-content.active {
-    display: block;
-}
-
-.table-container {
-    height: 100%;
-    overflow-y: auto;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-th, td {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-}
-
-th {
-    background-color: var(--bg-card);
-    position: sticky;
-    top: 0;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-tr:hover {
-    background-color: var(--bg-card);
-}
-
-/* Status Bar */
-.status-bar {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-}
-
-/* Mermaid */
-.mermaid-container {
-    height: 100%;
-    overflow: auto;
     display: flex;
     justify-content: center;
-    background-color: var(--bg-card);
+    align-items: center;
+}
+
+/* Scrollbar styling for Webkit */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
     border-radius: 4px;
-    padding: 2rem;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Ensure mermaid text is readable in dark mode */
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node ellipse,
+.mermaid .node polygon,
+.mermaid .node path {
+    fill: hsl(var(--card)) !important;
+    stroke: hsl(var(--border)) !important;
+    stroke-width: 1.5px !important;
+}
+
+.mermaid .node .label {
+    color: hsl(var(--foreground)) !important;
+}
+
+.mermaid .edgePath .path {
+    stroke: hsl(var(--muted-foreground)) !important;
 }
