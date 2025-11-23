@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS SNS/SQS Manager</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -133,11 +134,14 @@
 
     <!-- Sidebar -->
     <aside class="w-80 border-r bg-card/50 flex flex-col h-full">
-        <div class="p-6 border-b flex items-center gap-2">
-            <div class="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-                <i data-lucide="cloud" class="h-5 w-5"></i>
+        <div class="p-6 border-b">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+                    <i data-lucide="cloud" class="h-5 w-5"></i>
+                </div>
+                <span class="font-bold text-lg tracking-tight">AWS Manager</span>
             </div>
-            <span class="font-bold text-lg tracking-tight">AWS Manager</span>
+            <span class="text-xs text-muted-foreground ml-10">v1.0.0</span>
         </div>
 
         <div class="flex-1 overflow-y-auto p-6 space-y-8">
@@ -253,6 +257,11 @@
                         <i data-lucide="link" class="h-3 w-3"></i>
                         <span id="count-links">0</span> Subs
                     </span>
+                    <span
+                        class="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md border border-border/50">
+                        <i data-lucide="unlink" class="h-3 w-3"></i>
+                        <span id="count-orphan">0</span> Non sub
+                    </span>
                 </div>
             </div>
 
@@ -315,6 +324,11 @@
                     class="tab-btn inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:text-foreground"
                     data-tab="links">
                     Subscriptions
+                </button>
+                <button onclick="switchTab('orphan')"
+                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:text-foreground"
+                    data-tab="orphan">
+                    Orphan
                 </button>
                 <button onclick="switchTab('diagram')"
                     class="tab-btn inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:text-foreground"
@@ -402,6 +416,33 @@
                                 </tr>
                             </thead>
                             <tbody id="list-links" class="[&_tr:last-child]:border-0">
+                                <!-- Items injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orphan Tab -->
+            <div id="tab-orphan" class="tab-content hidden h-full flex flex-col">
+                <div class="rounded-md border h-full overflow-hidden flex flex-col bg-card">
+                    <div class="overflow-auto flex-1">
+                        <table class="w-full caption-bottom text-sm">
+                            <thead class="[&_tr]:border-b">
+                                <tr class="border-b transition-colors hover:bg-muted/50">
+                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                                        Region</th>
+                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Name
+                                    </th>
+                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">URL
+                                    </th>
+                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Sent
+                                        (28d)</th>
+                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                                        Received (28d)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="list-orphan" class="[&_tr:last-child]:border-0">
                                 <!-- Items injected here -->
                             </tbody>
                         </table>

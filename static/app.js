@@ -193,6 +193,11 @@ function updateTables() {
     document.getElementById('count-topics').textContent = currentInventory.topics.length;
     document.getElementById('count-queues').textContent = currentInventory.queues.length;
     document.getElementById('count-links').textContent = currentInventory.links.length;
+    
+    // Calculate orphan queues count (queues without subscriptions)
+    const subscribedQueueArns = new Set(currentInventory.links.map(l => l.to_arn));
+    const orphanCount = currentInventory.queues.filter(q => !subscribedQueueArns.has(q.arn)).length;
+    document.getElementById('count-orphan').textContent = orphanCount;
 
     const rowClass = "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted";
     const cellClass = "p-4 align-middle [&:has([role=checkbox])]:pr-0";
@@ -264,6 +269,30 @@ function updateTables() {
             </td>
         </tr>
     `).join('');
+
+    // Update Orphan Queues (queues without subscriptions)
+    const orphanBody = document.getElementById('list-orphan');
+    if (orphanBody) {
+        // Get all queue ARNs that are subscribed to topics
+        const subscribedQueueArns = new Set(currentInventory.links.map(l => l.to_arn));
+        
+        // Filter queues that are not in the subscribed set
+        const orphanQueues = currentInventory.queues.filter(q => !subscribedQueueArns.has(q.arn));
+        
+        orphanBody.innerHTML = orphanQueues.map(q => {
+            const s = currentInventory.stats[q.arn] || {};
+            const sent = s.numberofmessagessent_28d !== undefined ? s.numberofmessagessent_28d : '-';
+            const recv = s.numberofmessagesreceived_28d !== undefined ? s.numberofmessagesreceived_28d : '-';
+            return `
+            <tr class="${rowClass}">
+                <td class="${cellClass}">${q.region}</td>
+                <td class="${cellClass} font-medium">${q.name}</td>
+                <td class="${cellClass} font-mono text-xs text-muted-foreground truncate max-w-[200px]" title="${q.url}">${q.url}</td>
+                <td class="${cellClass}">${sent}</td>
+                <td class="${cellClass}">${recv}</td>
+            </tr>
+        `}).join('');
+    }
 
     updateRealtimeQueueList();
 }

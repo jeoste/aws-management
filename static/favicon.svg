@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#002147;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#87B8B5;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Cloud shape -->
+  <path d="M45 20c-2.5 0-4.8 1-6.5 2.6C36.2 19.2 32.8 17 29 17c-5.5 0-10 4.5-10 10 0 0.3 0 0.6 0.1 0.9C15.5 29.2 12 33.1 12 38c0 4.4 3.6 8 8 8h25c5.5 0 10-4.5 10-10s-4.5-10-10-10z" fill="url(#cloudGradient)" stroke="#002147" stroke-width="1.5"/>
+  <!-- Small accent circle for visual interest -->
+  <circle cx="25" cy="30" r="3" fill="#F4ECD8" opacity="0.6"/>
+</svg>
+
