@@ -36,7 +36,7 @@ async function loadCredentials() {
     try {
         const res = await fetch('/api/credentials');
         const data = await res.json();
-        
+
         if (data.access_key) document.getElementById('access_key').value = data.access_key;
         if (data.secret_key) document.getElementById('secret_key').value = data.secret_key;
         if (data.session_token) document.getElementById('session_token').value = data.session_token;
@@ -69,7 +69,7 @@ async function testConnection() {
             body: JSON.stringify(data)
         });
         const result = await res.json();
-        
+
         if (result.success) {
             setStatus(`Connected: ${result.arn}`, 'success');
         } else {
@@ -114,7 +114,7 @@ async function scanResources() {
             body: JSON.stringify(data)
         });
         const inventory = await res.json();
-        
+
         if (inventory.error) {
             setStatus(`Scan failed: ${inventory.error}`, 'error');
         } else {
@@ -126,9 +126,9 @@ async function scanResources() {
 
             inventory.forEach(regionItem => {
                 const r = regionItem.region;
-                regionItem.topics.forEach(t => currentInventory.topics.push({...t, region: r}));
-                regionItem.queues.forEach(q => currentInventory.queues.push({...q, region: r}));
-                regionItem.links.forEach(l => currentInventory.links.push({...l, region: r}));
+                regionItem.topics.forEach(t => currentInventory.topics.push({ ...t, region: r }));
+                regionItem.queues.forEach(q => currentInventory.queues.push({ ...q, region: r }));
+                regionItem.links.forEach(l => currentInventory.links.push({ ...l, region: r }));
             });
 
             updateTables();
@@ -185,19 +185,24 @@ function updateTables() {
 
     // Update Links (Grouped by Topic)
     const linksBody = document.getElementById('list-links');
-    
+
     // Group links by Topic ARN (or Name + Region)
     const groupedLinks = {};
     currentInventory.links.forEach(l => {
-        const key = `${l.region}|${l.topic_name}`;
+        // Extract topic name from from_arn (format: arn:aws:sns:region:account:TopicName)
+        const topicName = l.from_arn ? l.from_arn.split(':').pop() : 'Unknown';
+        // Extract queue name from to_arn (format: arn:aws:sqs:region:account:QueueName)
+        const queueName = l.to_arn ? l.to_arn.split(':').pop() : 'Unknown';
+
+        const key = `${l.region}|${topicName}`;
         if (!groupedLinks[key]) {
             groupedLinks[key] = {
                 region: l.region,
-                topic_name: l.topic_name,
+                topic_name: topicName,
                 queues: []
             };
         }
-        groupedLinks[key].queues.push(l.queue_name);
+        groupedLinks[key].queues.push(queueName);
     });
 
     linksBody.innerHTML = Object.values(groupedLinks).map(group => `
@@ -323,4 +328,85 @@ function downloadFile(filename, content) {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+}
+
+// Real-time monitoring
+let realtimeInterval = null;
+let isMonitoring = false;
+
+function toggleRealtime() {
+    const button = document.getElementById('realtime-toggle');
+    const statusText = document.getElementById('realtime-status');
+    const icon = button.querySelector('i');
+
+    if (isMonitoring) {
+        // Stop monitoring
+        clearInterval(realtimeInterval);
+        realtimeInterval = null;
+        isMonitoring = false;
+        statusText.textContent = 'Start Monitoring';
+        icon.setAttribute('data-lucide', 'play');
+        lucide.createIcons();
+    } else {
+        // Start monitoring
+        isMonitoring = true;
+        statusText.textContent = 'Stop Monitoring';
+        icon.setAttribute('data-lucide', 'pause');
+        lucide.createIcons();
+
+        // Poll for messages every 2 seconds
+        fetchRealtimeMessages();
+        realtimeInterval = setInterval(fetchRealtimeMessages, 2000);
+    }
+}
+
+async function fetchRealtimeMessages() {
+    // This is a placeholder - you'll need to implement the backend endpoint
+    // For now, we'll simulate some messages
+    const log = document.getElementById('realtime-log');
+
+    // Simulate message activity
+    const timestamp = new Date().toLocaleTimeString();
+    const topics = currentInventory.topics.map(t => t.name);
+    const queues = currentInventory.queues.map(q => q.name);
+
+    if (topics.length > 0 && queues.length > 0) {
+        const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+        const randomQueue = queues[Math.floor(Math.random() * queues.length)];
+
+        const messageHtml = `
+            <div class="flex items-start gap-2 p-2 rounded bg-muted/50 border border-border/50">
+                <div class="text-muted-foreground">${timestamp}</div>
+                <div class="flex-1">
+                    <span class="text-primary font-medium">${randomTopic}</span>
+                    <i data-lucide="arrow-right" class="inline h-3 w-3 mx-1"></i>
+                    <span class="text-secondary font-medium">${randomQueue}</span>
+                </div>
+            </div>
+        `;
+
+        // Remove placeholder if it exists
+        const placeholder = log.querySelector('.text-center');
+        if (placeholder) {
+            log.innerHTML = '';
+        }
+
+        // Add new message at the top
+        log.insertAdjacentHTML('afterbegin', messageHtml);
+        lucide.createIcons();
+
+        // Keep only last 50 messages
+        while (log.children.length > 50) {
+            log.removeChild(log.lastChild);
+        }
+    }
+}
+
+function clearRealtimeLog() {
+    const log = document.getElementById('realtime-log');
+    log.innerHTML = `
+        <div class="text-muted-foreground text-center py-8">
+            Click "Start Monitoring" to begin tracking real-time message exchanges
+        </div>
+    `;
 }

@@ -17,7 +17,7 @@ class TestApp(unittest.TestCase):
     def test_index(self):
         response = self.app.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'AWS SNS/SQS Manager', response.data)
+        self.assertIn(b'AWS Manager', response.data)
 
     @patch('app.keyring')
     def test_credentials_get(self, mock_keyring):

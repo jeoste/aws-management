@@ -1,4 +1,4 @@
-# AWS SNS/SQS Mapper (MVP)
+# AWS Manager (MVP)
 
 Petit utilitaire CLI pour inventorier les Topics SNS, les Queues SQS et leurs souscriptions, puis générer un export JSON et/ou un diagramme Mermaid.
 
