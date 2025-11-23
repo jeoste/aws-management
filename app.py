@@ -209,6 +209,8 @@ def monitor():
     """Real-time monitoring endpoint - returns recent message activity"""
     data = request.json
     items = data.get("items", [])
+    # Optional: whether to attempt to peek SQS messages (receive then reset visibility)
+    fetch_messages = bool(data.get("fetch_messages", False))
     
     # Group by region
     by_region = {}
@@ -264,6 +266,8 @@ def monitor():
                                     'count': int(dp['Sum']),
                                     'region': region
                                 })
+                    # If client requested message peeking, also attempt to find any SQS messages
+                    # for queues that may be subscribed to this topic. We skip this here for topics.
                     
                     elif rtype == 'queue':
                         # SQS: NumberOfMessagesSent and NumberOfMessagesReceived
@@ -292,6 +296,51 @@ def monitor():
                                         'count': int(dp['Sum']),
                                         'region': region
                                     })
+                    # If requested, attempt to peek actual SQS messages for this queue
+                    if fetch_messages:
+                        try:
+                            sqs = session.client('sqs', region_name=region)
+                            # Try to get queue URL if arn provided
+                            queue_url = None
+                            # If arn looks like arn:aws:sqs:region:acct:QueueName, try to resolve URL
+                            if arn and arn.startswith('arn:') and ':sqs:' in arn:
+                                try:
+                                    qname = arn.split(':')[-1]
+                                    resp_q = sqs.get_queue_url(QueueName=qname)
+                                    queue_url = resp_q.get('QueueUrl')
+                                except Exception:
+                                    queue_url = None
+                            # If queue_url still None, attempt to find by listing (fallback)
+                            if not queue_url:
+                                try:
+                                    resp_list = sqs.list_queues(QueueNamePrefix=name)
+                                    urls = resp_list.get('QueueUrls', []) or []
+                                    if urls:
+                                        queue_url = urls[0]
+                                except Exception:
+                                    queue_url = None
+
+                            if queue_url:
+                                # Receive messages non-destructively: receive then reset visibility to 0
+                                rm = sqs.receive_message(QueueUrl=queue_url, MaxNumberOfMessages=5, WaitTimeSeconds=0)
+                                for m in rm.get('Messages', []) or []:
+                                    results.append({
+                                        'timestamp': datetime.utcnow().isoformat(),
+                                        'type': 'sqs_message',
+                                        'resource': name,
+                                        'resource_type': 'queue',
+                                        'arn': arn,
+                                        'count': 1,
+                                        'region': region,
+                                        'body': m.get('Body')
+                                    })
+                                    # Try to make the message visible again quickly
+                                    try:
+                                        sqs.change_message_visibility(QueueUrl=queue_url, ReceiptHandle=m.get('ReceiptHandle'), VisibilityTimeout=0)
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
                 
                 except Exception as e:
                     # Skip errors for individual resources

@@ -32,6 +32,50 @@ function setStatus(msg, type = 'normal') {
     el.className = `px-6 py-2 text-xs border-b bg-muted/20 flex items-center ${type === 'error' ? 'text-destructive' : 'text-muted-foreground'}`;
 }
 
+// Helper to set the icon inside the realtime toggle button safely.
+function setToggleIcon(button, name) {
+    if (!button) return;
+    // Try to find an element that lucide recognizes or an existing svg
+    let iconEl = button.querySelector('[data-lucide]') || button.querySelector('svg');
+    if (iconEl) {
+        try {
+            // update data-lucide attribute if possible
+            iconEl.setAttribute('data-lucide', name);
+        } catch (e) {
+            // ignore
+        }
+    } else {
+        // Insert an <i> with data-lucide before the status span
+        const statusSpan = button.querySelector('#realtime-status') || button.querySelector('span');
+        const i = document.createElement('i');
+        i.setAttribute('data-lucide', name);
+        i.className = 'mr-2 h-4 w-4';
+        if (statusSpan && statusSpan.parentNode === button) {
+            button.insertBefore(i, statusSpan);
+        } else {
+            button.prepend(i);
+        }
+    }
+    try { lucide.createIcons(); } catch (e) {}
+}
+
+// Utility to escape HTML in message bodies
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe.replace(/[&<"'`=\/]/g, function (s) {
+        return ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+            '`': '&#96;',
+            '=': '&#61;',
+            '/': '&#47;'
+        })[s];
+    });
+}
+
 async function loadCredentials() {
     try {
         const res = await fetch('/api/credentials');
@@ -222,6 +266,7 @@ function updateTables() {
     `).join('');
 
     updateRealtimeTopicList();
+    updateRealtimeQueueList();
 }
 
 function updateRealtimeTopicList() {
@@ -252,6 +297,74 @@ function updateRealtimeTopicList() {
         label.appendChild(span);
         container.appendChild(label);
     });
+}
+
+function updateRealtimeQueueList() {
+    const container = document.getElementById('realtime-queue-list');
+    if (!container) return;
+
+    if (currentInventory.queues.length === 0) {
+        container.innerHTML = '<div class="text-xs text-muted-foreground">Scan resources first to see available queues</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    currentInventory.queues.forEach(queue => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer transition-colors';
+        label.title = queue.url || queue.name;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = queue.arn;
+        checkbox.dataset.name = queue.name;
+        checkbox.className = 'h-4 w-4 rounded border-primary';
+        checkbox.checked = false; // not selected by default
+
+        const span = document.createElement('span');
+        span.className = 'text-sm';
+        span.textContent = queue.name;
+
+        label.appendChild(checkbox);
+        label.appendChild(span);
+        container.appendChild(label);
+    });
+}
+
+function selectAllTopics() {
+    document.querySelectorAll('#realtime-topic-list input[type="checkbox"]').forEach(cb => cb.checked = true);
+}
+
+function deselectAllTopics() {
+    document.querySelectorAll('#realtime-topic-list input[type="checkbox"]').forEach(cb => cb.checked = false);
+}
+
+function selectAllQueues() {
+    document.querySelectorAll('#realtime-queue-list input[type="checkbox"]').forEach(cb => cb.checked = true);
+}
+
+function deselectAllQueues() {
+    document.querySelectorAll('#realtime-queue-list input[type="checkbox"]').forEach(cb => cb.checked = false);
+}
+
+function filterQueues() {
+    const q = document.getElementById('realtime-queue-filter');
+    const term = (q.value || '').toLowerCase().trim();
+    const container = document.getElementById('realtime-queue-list');
+    if (!container) return;
+    Array.from(container.children).forEach(label => {
+        const text = (label.textContent || '').toLowerCase();
+        if (!term || text.includes(term)) {
+            label.style.display = '';
+        } else {
+            label.style.display = 'none';
+        }
+    });
+}
+
+function getSelectedQueues() {
+    const checkboxes = document.querySelectorAll('#realtime-queue-list input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
 }
 
 function getSelectedTopics() {
@@ -333,7 +446,9 @@ async function fetchStatistics() {
         secret_key: document.getElementById('secret_key').value,
         session_token: document.getElementById('session_token').value,
         profile: document.getElementById('profile').value,
-        items: items
+        items: items,
+        // Request the server to attempt peeking SQS messages (non-destructive when possible)
+        fetch_messages: true
     };
 
     try {
@@ -374,21 +489,40 @@ let isMonitoring = false;
 function toggleRealtime() {
     const button = document.getElementById('realtime-toggle');
     const statusText = document.getElementById('realtime-status');
-    const icon = button.querySelector('i');
 
     if (isMonitoring) {
         // Stop monitoring
         clearInterval(realtimeInterval);
         realtimeInterval = null;
         isMonitoring = false;
-        statusText.textContent = 'Start Monitoring';
-        icon.setAttribute('data-lucide', 'play');
+    statusText.textContent = 'Start Monitoring';
+    setToggleIcon(button, 'play');
+        // Switch button color back to primary (blue)
+        try {
+            button.classList.remove('bg-destructive', 'text-destructive-foreground');
+            button.classList.add('bg-primary', 'text-primary-foreground');
+        } catch (e) {
+            // ignore
+        }
+        // also set explicit inline color to ensure visual change
+        button.style.backgroundColor = 'rgb(2 132 199)'; // blue
+        button.style.color = '#ffffff';
         lucide.createIcons();
     } else {
         // Start monitoring
         isMonitoring = true;
-        statusText.textContent = 'Stop Monitoring';
-        icon.setAttribute('data-lucide', 'pause');
+    statusText.textContent = 'Stop Monitoring';
+    setToggleIcon(button, 'pause');
+        // Switch button color to destructive (red)
+        try {
+            button.classList.remove('bg-primary', 'text-primary-foreground');
+            button.classList.add('bg-destructive', 'text-destructive-foreground');
+        } catch (e) {
+            // ignore
+        }
+        // explicit inline color to ensure visible change
+        button.style.backgroundColor = 'rgb(239 68 68)'; // red
+        button.style.color = '#ffffff';
         lucide.createIcons();
 
         // Poll for messages every 2 seconds
@@ -399,6 +533,11 @@ function toggleRealtime() {
 
 async function fetchRealtimeMessages() {
     const log = document.getElementById('realtime-log');
+    try {
+        console.debug('fetchRealtimeMessages called');
+    } catch (e) {}
+
+    try {
 
     // Check if we have scanned resources
     if (currentInventory.topics.length === 0 && currentInventory.queues.length === 0) {
@@ -412,11 +551,12 @@ async function fetchRealtimeMessages() {
 
     // Prepare items list for monitoring
     const selectedTopicArns = getSelectedTopics();
+    const selectedQueueArns = getSelectedQueues();
 
-    if (selectedTopicArns.length === 0) {
+    if (selectedTopicArns.length === 0 && selectedQueueArns.length === 0) {
         log.innerHTML = `
             <div class="text-muted-foreground text-center py-8">
-                Please select at least one topic to monitor
+                Please select at least one topic or queue to monitor
             </div>
         `;
         return;
@@ -427,6 +567,15 @@ async function fetchRealtimeMessages() {
     currentInventory.topics.forEach(t => {
         if (selectedTopicArns.includes(t.arn)) {
             items.push({ arn: t.arn, name: t.name, region: t.region, type: 'topic' });
+        }
+    });
+
+    // Also add explicitly selected queues
+    currentInventory.queues.forEach(q => {
+        if (selectedQueueArns.includes(q.arn)) {
+            if (!items.find(i => i.arn === q.arn)) {
+                items.push({ arn: q.arn, name: q.name, region: q.region, type: 'queue' });
+            }
         }
     });
 
@@ -448,7 +597,8 @@ async function fetchRealtimeMessages() {
         secret_key: document.getElementById('secret_key').value,
         session_token: document.getElementById('session_token').value,
         profile: document.getElementById('profile').value,
-        items: items
+        items: items,
+        fetch_messages: true
     };
 
     try {
@@ -475,15 +625,20 @@ async function fetchRealtimeMessages() {
         if (messages.length > 0) {
             messages.forEach(msg => {
                 const timestamp = new Date(msg.timestamp).toLocaleTimeString();
+                const bodyHtml = msg.body ? `<div class="mt-1 text-sm text-muted-foreground">${escapeHtml(msg.body)}</div>` : '';
+                const countHtml = msg.count ? `<span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">${msg.count} msg</span>` : '';
                 const messageHtml = `
-                    <div class="flex items-start gap-2 p-2 rounded bg-muted/50 border border-border/50">
-                        <div class="text-muted-foreground text-xs">${timestamp}</div>
-                        <div class="flex-1">
-                            <span class="text-primary font-medium">${msg.resource}</span>
-                            <span class="text-xs text-muted-foreground mx-1">(${msg.type})</span>
-                            <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">${msg.count} msg</span>
+                    <div class="flex flex-col gap-1 p-2 rounded bg-muted/50 border border-border/50">
+                        <div class="flex items-start gap-2">
+                            <div class="text-muted-foreground text-xs">${timestamp}</div>
+                            <div class="flex-1">
+                                <span class="text-primary font-medium">${msg.resource}</span>
+                                <span class="text-xs text-muted-foreground mx-1">(${msg.type})</span>
+                                ${countHtml}
+                            </div>
+                            <div class="text-xs text-muted-foreground">${msg.region}</div>
                         </div>
-                        <div class="text-xs text-muted-foreground">${msg.region}</div>
+                        ${bodyHtml}
                     </div>
                 `;
 
@@ -500,6 +655,16 @@ async function fetchRealtimeMessages() {
         }
     } catch (e) {
         console.error('Failed to fetch realtime messages:', e);
+        // Show error in UI for easier debugging
+        try {
+            log.insertAdjacentHTML('afterbegin', `<div class="text-destructive text-sm p-2">Realtime error: ${escapeHtml(String(e))}</div>`);
+        } catch (ee) {}
+    }
+    } catch (syncErr) {
+        console.error('Synchronous error in fetchRealtimeMessages:', syncErr);
+        try {
+            log.insertAdjacentHTML('afterbegin', `<div class="text-destructive text-sm p-2">Realtime sync error: ${escapeHtml(String(syncErr))}</div>`);
+        } catch (ee) {}
     }
 }
 
