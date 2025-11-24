@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Linear-inspired neutral grays with subtle blue accent */
+    /* Background: Pure white */
+    --background: 0 0% 100%;
+    /* Foreground: Near-black */
+    --foreground: 0 0% 4%;
+    /* Card: White with subtle shadow */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 4%;
+    /* Popover: White */
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+    /* Primary: Linear's signature blue #5E6AD2 */
+    --primary: 248 47% 62%;
+    --primary-foreground: 0 0% 100%;
+    /* Secondary: Neutral gray */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 4%;
+    /* Muted: Very light gray */
+    --muted: 0 0% 98%;
+    --muted-foreground: 0 0% 42%;
+    /* Accent: Subtle gray */
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 4%;
+    /* Destructive: Red */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    /* Border: Subtle gray #E5E5E5 */
+    --border: 0 0% 90%;
+    /* Input: Subtle gray border */
+    --input: 0 0% 90%;
+    /* Ring: Primary blue for focus */
+    --ring: 248 47% 62%;
+    --radius: 0.375rem;
+  }
+
+  .dark {
+    /* Dark mode: Linear-inspired dark grays */
+    /* Background: Dark gray #0D0D0D */
+    --background: 0 0% 5%;
+    /* Foreground: Near-white */
+    --foreground: 0 0% 98%;
+    /* Card: Dark gray #1A1A1A */
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 98%;
+    /* Popover: Dark gray */
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 98%;
+    /* Primary: Lighter blue for better visibility #6B7AE8 */
+    --primary: 248 60% 70%;
+    --primary-foreground: 0 0% 4%;
+    /* Secondary: Dark gray */
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+    /* Muted: Dark gray */
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    /* Accent: Dark gray */
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+    /* Destructive: Darker red */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    /* Border: Dark gray #2A2A2A */
+    --border: 0 0% 16%;
+    /* Input: Dark gray border */
+    --input: 0 0% 16%;
+    /* Ring: Primary blue */
+    --ring: 248 60% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    letter-spacing: -0.01em;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.01em;
+    line-height: 1.4;
+  }
+  p, span, div {
+    line-height: 1.5;
+  }
+}
+

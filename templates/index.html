@@ -9,120 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        border: "hsl(var(--border))",
-                        input: "hsl(var(--input))",
-                        ring: "hsl(var(--ring))",
-                        background: "hsl(var(--background))",
-                        foreground: "hsl(var(--foreground))",
-                        primary: {
-                            DEFAULT: "hsl(var(--primary))",
-                            foreground: "hsl(var(--primary-foreground))",
-                        },
-                        secondary: {
-                            DEFAULT: "hsl(var(--secondary))",
-                            foreground: "hsl(var(--secondary-foreground))",
-                        },
-                        destructive: {
-                            DEFAULT: "hsl(var(--destructive))",
-                            foreground: "hsl(var(--destructive-foreground))",
-                        },
-                        muted: {
-                            DEFAULT: "hsl(var(--muted))",
-                            foreground: "hsl(var(--muted-foreground))",
-                        },
-                        accent: {
-                            DEFAULT: "hsl(var(--accent))",
-                            foreground: "hsl(var(--accent-foreground))",
-                        },
-                        popover: {
-                            DEFAULT: "hsl(var(--popover))",
-                            foreground: "hsl(var(--popover-foreground))",
-                        },
-                        card: {
-                            DEFAULT: "hsl(var(--card))",
-                            foreground: "hsl(var(--card-foreground))",
-                        },
-                    },
-                    borderRadius: {
-                        lg: "var(--radius)",
-                        md: "calc(var(--radius) - 2px)",
-                        sm: "calc(var(--radius) - 4px)",
-                    },
-                }
-            }
-        }
-    </script>
-    <style type="text/tailwindcss">
-        @layer base {
-            :root {
-                /* Casa Blanca: #F4ECD8 -> hsl(43, 50%, 90%) */
-                /* Oxford Blue: #002147 -> hsl(212, 100%, 14%) */
-                /* Vintage Blue: #87B8B5 -> hsl(176, 25%, 63%) */
-
-                --background: 43 50% 90%;
-                --foreground: 212 100% 14%;
-                --card: 0 0% 100%;
-                --card-foreground: 212 100% 14%;
-                --popover: 0 0% 100%;
-                --popover-foreground: 212 100% 14%;
-                --primary: 212 100% 14%;
-                --primary-foreground: 43 50% 90%;
-                --secondary: 176 25% 63%;
-                --secondary-foreground: 212 100% 14%;
-                --muted: 176 25% 90%;
-                --muted-foreground: 212 40% 40%;
-                --accent: 176 25% 63%;
-                --accent-foreground: 212 100% 14%;
-                --destructive: 0 84.2% 60.2%;
-                --destructive-foreground: 0 0% 98%;
-                --border: 212 30% 80%;
-                --input: 212 30% 80%;
-                --ring: 212 100% 14%;
-                --radius: 0.5rem;
-            }
- 
-            .dark {
-                --background: 212 100% 14%;
-                --foreground: 43 50% 90%;
-                --card: 212 80% 10%;
-                --card-foreground: 43 50% 90%;
-                --popover: 212 80% 10%;
-                --popover-foreground: 43 50% 90%;
-                --primary: 43 50% 90%;
-                --primary-foreground: 212 100% 14%;
-                --secondary: 176 25% 63%;
-                --secondary-foreground: 212 100% 14%;
-                --muted: 212 50% 25%;
-                --muted-foreground: 176 20% 70%;
-                --accent: 176 25% 63%;
-                --accent-foreground: 212 100% 14%;
-                --destructive: 0 62.8% 30.6%;
-                --destructive-foreground: 210 40% 98%;
-                --border: 212 50% 25%;
-                --input: 212 50% 25%;
-                --ring: 176 25% 63%;
-            }
-        }
-        
-        @layer base {
-            * {
-                @apply border-border;
-            }
-            body {
-                @apply bg-background text-foreground;
-            }
-        }
-    </style>
+    <!-- Tailwind CSS from React build -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='react/assets/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Mermaid for diagrams -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
@@ -133,63 +21,61 @@
 <body class="h-screen overflow-hidden flex antialiased selection:bg-primary selection:text-primary-foreground">
 
     <!-- Sidebar -->
-    <aside class="w-80 border-r bg-card/50 flex flex-col h-full">
-        <div class="p-6 border-b">
-            <div class="flex items-center gap-2 mb-1">
-                <div class="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-                    <i data-lucide="cloud" class="h-5 w-5"></i>
-                </div>
-                <span class="font-bold text-lg tracking-tight">AWS Manager</span>
+    <aside class="w-80 border-r border-border bg-background flex flex-col h-full">
+        <div class="p-8 border-b border-border">
+            <div class="flex items-center gap-3 mb-1">
+                <i data-lucide="cloud" class="h-5 w-5 text-foreground"></i>
+                <span class="font-semibold text-base tracking-tight text-foreground">AWS Manager</span>
             </div>
-            <span class="text-xs text-muted-foreground ml-10">v1.0.0</span>
+            <span class="text-xs text-muted-foreground ml-8">v1.0.0</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6 space-y-8">
+        <div class="flex-1 overflow-y-auto p-8 space-y-8">
             <div class="space-y-4">
-                <h3 class="text-sm font-medium text-muted-foreground uppercase tracking-wider">Credentials</h3>
+                <h3 class="text-xs font-medium text-muted-foreground tracking-normal">Credentials</h3>
 
                 <div class="space-y-3">
-                    <div class="space-y-1">
+                    <div class="space-y-1.5">
                         <label
-                            class="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Profile</label>
+                            class="text-xs font-medium text-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Profile</label>
                         <input type="text" id="profile" placeholder="default"
-                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50">
+                            class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50">
                     </div>
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-medium leading-none">Access Key ID</label>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-medium text-foreground leading-none">Access Key ID</label>
                         <input type="text" id="access_key" placeholder="AWS_ACCESS_KEY_ID"
-                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                            class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
                     </div>
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-medium leading-none">Secret Access Key</label>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-medium text-foreground leading-none">Secret Access Key</label>
                         <input type="password" id="secret_key" placeholder="AWS_SECRET_ACCESS_KEY"
-                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                            class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
                     </div>
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-medium leading-none">Session Token</label>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-medium text-foreground leading-none">Session Token</label>
                         <input type="password" id="session_token" placeholder="Optional"
-                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                            class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
                     </div>
 
-                    <div class="flex items-center space-x-2 pt-2">
+                    <div class="flex items-center space-x-2 pt-1">
                         <input type="checkbox" id="remember"
-                            class="h-4 w-4 rounded border-primary text-primary shadow focus:ring-0">
+                            class="h-4 w-4 rounded border-border text-primary focus:ring-0 focus:ring-offset-0">
                         <label for="remember"
-                            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Remember
+                            class="text-sm font-medium text-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Remember
                             me</label>
                     </div>
                 </div>
             </div>
 
             <div class="space-y-4">
-                <h3 class="text-sm font-medium text-muted-foreground uppercase tracking-wider">Configuration</h3>
-                <div class="space-y-1">
-                    <label class="text-xs font-medium leading-none">Region</label>
+                <h3 class="text-xs font-medium text-muted-foreground tracking-normal">Configuration</h3>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-foreground leading-none">Region</label>
                     <select id="regions"
-                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                        class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
                         <option value="us-east-1">us-east-1 (N. Virginia)</option>
                         <option value="us-east-2">us-east-2 (Ohio)</option>
                         <option value="us-west-1">us-west-1 (N. California)</option>
@@ -216,18 +102,18 @@
             </div>
         </div>
 
-        <div class="p-6 border-t space-y-2 bg-card/50">
+        <div class="p-8 border-t border-border space-y-3 bg-background">
             <button id="scan-btn"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 w-full">
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 w-full">
                 <i data-lucide="search" class="mr-2 h-4 w-4"></i> Scan Resources
             </button>
             <div class="grid grid-cols-2 gap-2">
                 <button id="test-conn-btn"
-                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2">
+                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent hover:bg-muted h-9 px-4 py-2">
                     Test Conn
                 </button>
                 <button id="stats-btn"
-                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2">
+                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent hover:bg-muted h-9 px-4 py-2">
                     Fetch Stats
                 </button>
             </div>
@@ -238,28 +124,28 @@
     <main class="flex-1 flex flex-col min-w-0 bg-background">
         <!-- Header -->
         <header
-            class="h-16 border-b px-6 flex items-center justify-between bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div class="flex items-center gap-4">
-                <h1 class="text-lg font-semibold">Dashboard</h1>
-                <div class="flex items-center gap-2 text-sm text-muted-foreground">
+            class="h-16 border-b border-border px-8 flex items-center justify-between bg-background">
+            <div class="flex items-center gap-6">
+                <h1 class="text-base font-semibold text-foreground">Dashboard</h1>
+                <div class="flex items-center gap-2 text-sm">
                     <span
-                        class="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md border border-border/50">
-                        <i data-lucide="message-square" class="h-3 w-3"></i>
+                        class="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
+                        <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
                         <span id="count-topics">0</span> Topics
                     </span>
                     <span
-                        class="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md border border-border/50">
-                        <i data-lucide="layers" class="h-3 w-3"></i>
+                        class="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
+                        <i data-lucide="layers" class="h-3.5 w-3.5"></i>
                         <span id="count-queues">0</span> Queues
                     </span>
                     <span
-                        class="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md border border-border/50">
-                        <i data-lucide="link" class="h-3 w-3"></i>
+                        class="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
+                        <i data-lucide="link" class="h-3.5 w-3.5"></i>
                         <span id="count-links">0</span> Subs
                     </span>
                     <span
-                        class="flex items-center gap-1 bg-secondary/50 px-2 py-0.5 rounded-md border border-border/50">
-                        <i data-lucide="unlink" class="h-3 w-3"></i>
+                        class="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
+                        <i data-lucide="unlink" class="h-3.5 w-3.5"></i>
                         <span id="count-orphan">0</span> Non sub
                     </span>
                 </div>
@@ -267,7 +153,7 @@
 
             <div class="flex items-center gap-2">
                 <button onclick="toggleTheme()"
-                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9">
+                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent hover:bg-muted h-9 w-9">
                     <i data-lucide="sun"
                         class="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"></i>
                     <i data-lucide="moon"
@@ -277,23 +163,31 @@
 
                 <div class="dropdown relative group">
                     <button
-                        class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2">
+                        class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent hover:bg-muted h-9 px-4 py-2">
                         <i data-lucide="download" class="mr-2 h-4 w-4"></i> Export
                     </button>
                     <!-- Simple dropdown implementation -->
                     <div
-                        class="absolute right-0 mt-2 w-48 rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none hidden group-hover:block animate-in fade-in-80 zoom-in-95 z-50">
+                        class="absolute right-0 mt-2 w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-sm outline-none hidden group-hover:block z-50">
                         <button onclick="exportData('json')"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
                             JSON
                         </button>
                         <button onclick="exportData('sql')"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
                             SQL
                         </button>
                         <button onclick="exportData('drawio')"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
                             Draw.io
+                        </button>
+                        <button onclick="exportData('mermaid')"
+                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
+                            Mermaid
+                        </button>
+                        <button onclick="exportData('canvas')"
+                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
+                            JSON Canvas
                         </button>
                     </div>
                 </div>
@@ -302,41 +196,41 @@
 
         <!-- Status Bar -->
         <div id="status-bar"
-            class="px-6 py-2 text-xs text-muted-foreground border-b bg-muted/20 flex items-center gap-2">
+            class="px-8 py-2 text-xs text-muted-foreground border-b border-border bg-muted/30 flex items-center gap-2">
             <div class="h-2 w-2 rounded-full bg-green-500"></div>
             Ready
         </div>
 
         <!-- Tabs Navigation -->
-        <div class="px-6 pt-6">
-            <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+        <div class="px-8 pt-8 pb-0">
+            <div class="inline-flex h-10 items-center justify-center gap-1 border-b border-border">
                 <button onclick="switchTab('topics')"
-                    class="tab-btn active inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                    class="tab-btn active inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground"
                     data-tab="topics">
                     Topics
                 </button>
                 <button onclick="switchTab('queues')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:text-foreground"
+                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
                     data-tab="queues">
                     Queues
                 </button>
                 <button onclick="switchTab('links')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:text-foreground"
+                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
                     data-tab="links">
                     Subscriptions
                 </button>
                 <button onclick="switchTab('orphan')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:text-foreground"
+                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
                     data-tab="orphan">
                     Orphan
                 </button>
                 <button onclick="switchTab('diagram')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:text-foreground"
+                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
                     data-tab="diagram">
                     Diagram
                 </button>
                 <button onclick="switchTab('realtime')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:text-foreground"
+                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
                     data-tab="realtime">
                     Real-time
                 </button>
@@ -344,22 +238,22 @@
         </div>
 
         <!-- Content Area -->
-        <div class="flex-1 overflow-hidden p-6">
+        <div class="flex-1 overflow-hidden p-8">
 
             <!-- Topics Tab -->
             <div id="tab-topics" class="tab-content h-full flex flex-col">
-                <div class="rounded-md border h-full overflow-hidden flex flex-col bg-card">
+                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
                     <div class="overflow-auto flex-1">
                         <table class="w-full caption-bottom text-sm">
-                            <thead class="[&_tr]:border-b">
-                                <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                            <thead class="[&_tr]:border-b border-border">
+                                <tr class="border-b border-border bg-muted/30">
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
                                         Region</th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Name
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Name
                                     </th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">ARN
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">ARN
                                     </th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
                                         Published (28d)</th>
                                 </tr>
                             </thead>
@@ -373,20 +267,20 @@
 
             <!-- Queues Tab -->
             <div id="tab-queues" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border h-full overflow-hidden flex flex-col bg-card">
+                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
                     <div class="overflow-auto flex-1">
                         <table class="w-full caption-bottom text-sm">
-                            <thead class="[&_tr]:border-b">
-                                <tr class="border-b transition-colors hover:bg-muted/50">
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                            <thead class="[&_tr]:border-b border-border">
+                                <tr class="border-b border-border bg-muted/30">
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
                                         Region</th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Name
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Name
                                     </th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">URL
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">URL
                                     </th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Sent
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Sent
                                         (28d)</th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
                                         Received (28d)</th>
                                 </tr>
                             </thead>
@@ -400,18 +294,18 @@
 
             <!-- Subscriptions Tab -->
             <div id="tab-links" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border h-full overflow-hidden flex flex-col bg-card">
+                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
                     <div class="overflow-auto flex-1">
                         <table class="w-full caption-bottom text-sm">
-                            <thead class="[&_tr]:border-b">
-                                <tr class="border-b transition-colors hover:bg-muted/50">
+                            <thead class="[&_tr]:border-b border-border">
+                                <tr class="border-b border-border bg-muted/30">
                                     <th
-                                        class="h-10 px-4 text-left align-middle font-medium text-muted-foreground w-[100px]">
+                                        class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs w-[100px]">
                                         Region</th>
                                     <th
-                                        class="h-10 px-4 text-left align-middle font-medium text-muted-foreground w-[300px]">
+                                        class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs w-[300px]">
                                         Topic</th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
                                         Subscribed Queues</th>
                                 </tr>
                             </thead>
@@ -425,20 +319,20 @@
 
             <!-- Orphan Tab -->
             <div id="tab-orphan" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border h-full overflow-hidden flex flex-col bg-card">
+                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
                     <div class="overflow-auto flex-1">
                         <table class="w-full caption-bottom text-sm">
-                            <thead class="[&_tr]:border-b">
-                                <tr class="border-b transition-colors hover:bg-muted/50">
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                            <thead class="[&_tr]:border-b border-border">
+                                <tr class="border-b border-border bg-muted/30">
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
                                         Region</th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Name
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Name
                                     </th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">URL
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">URL
                                     </th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Sent
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Sent
                                         (28d)</th>
-                                    <th class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">
+                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
                                         Received (28d)</th>
                                 </tr>
                             </thead>
@@ -452,37 +346,37 @@
 
             <!-- Real-time Tab -->
             <div id="tab-realtime" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border h-full overflow-hidden flex flex-col bg-card">
-                    <div class="p-6 flex gap-6 h-full">
+                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
+                    <div class="p-8 flex gap-8 h-full">
                         <!-- Left: queue selector and controls -->
                         <div class="w-1/3 flex flex-col">
-                            <h3 class="text-sm font-medium text-muted-foreground mb-2">Queues to monitor</h3>
+                            <h3 class="text-sm font-medium text-foreground mb-4">Queues to monitor</h3>
 
                             <div class="mt-1">
                                 <h4 class="text-sm font-medium text-muted-foreground mb-1">Queues filter</h4>
-                                <input id="realtime-queue-filter" oninput="filterQueues()" placeholder="Filter queues by name" class="w-full rounded border border-input px-2 py-1 mb-2 bg-transparent text-sm">
+                                <input id="realtime-queue-filter" oninput="filterQueues()" placeholder="Filter queues by name" class="w-full rounded-md border border-border px-3 py-2 mb-2 bg-background text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
                                 <div class="flex items-center gap-2 mb-2">
-                                    <button id="realtime-select-queues-all" onclick="selectAllQueues()" class="inline-flex items-center gap-2 rounded-md px-2 py-1 border bg-background text-sm">All</button>
-                                    <button id="realtime-select-queues-none" onclick="deselectAllQueues()" class="inline-flex items-center gap-2 rounded-md px-2 py-1 border bg-background text-sm">None</button>
+                                    <button id="realtime-select-queues-all" onclick="selectAllQueues()" class="inline-flex items-center gap-2 rounded-md px-2 py-1 border border-border bg-background text-sm font-medium transition-all hover:bg-muted">All</button>
+                                    <button id="realtime-select-queues-none" onclick="deselectAllQueues()" class="inline-flex items-center gap-2 rounded-md px-2 py-1 border border-border bg-background text-sm font-medium transition-all hover:bg-muted">None</button>
                                 </div>
-                                <div id="realtime-queue-list" class="h-40 overflow-auto rounded border border-input p-2 bg-background text-sm">
+                                <div id="realtime-queue-list" class="h-40 overflow-auto rounded-md border border-border p-3 bg-background text-sm">
                                     <div class="text-xs text-muted-foreground">Scan resources first to populate queues</div>
                                 </div>
                             </div>
 
                             <div class="mt-3 flex items-center gap-2">
-                                <button id="realtime-toggle" onclick="toggleRealtime()" class="inline-flex items-center gap-2 rounded-md px-3 py-1 bg-primary text-primary-foreground">
+                                <button id="realtime-toggle" onclick="toggleRealtime()" class="inline-flex items-center gap-2 rounded-md px-4 py-2 bg-primary text-primary-foreground text-sm font-medium transition-all hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-0">
                                     <i data-lucide="play"></i>
                                     <span id="realtime-status">Start Monitoring</span>
                                 </button>
-                                <button onclick="clearRealtimeLog()" class="inline-flex items-center gap-2 rounded-md px-3 py-1 border bg-transparent">Clear</button>
+                                <button onclick="clearRealtimeLog()" class="inline-flex items-center gap-2 rounded-md px-4 py-2 border border-border bg-transparent text-sm font-medium transition-all hover:bg-muted focus-visible:outline-none focus-visible:ring-0">Clear</button>
                             </div>
                         </div>
 
                         <!-- Right: realtime log -->
                         <div class="flex-1">
-                            <h3 class="text-sm font-medium text-muted-foreground mb-2">Live events</h3>
-                            <div id="realtime-log" class="overflow-auto rounded border border-input p-2 bg-background h-96">
+                            <h3 class="text-sm font-medium text-foreground mb-4">Live events</h3>
+                            <div id="realtime-log" class="overflow-auto rounded-md border border-border p-4 bg-background h-96">
                                 <div class="text-muted-foreground text-center py-8">Click "Start Monitoring" to begin tracking real-time message exchanges</div>
                             </div>
                         </div>
@@ -492,10 +386,45 @@
 
             <!-- Diagram Tab -->
             <div id="tab-diagram" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border h-full overflow-hidden bg-card flex items-center justify-center p-8">
-                    <div class="mermaid" id="mermaid-graph">
-                        graph TD;
-                        A[Start Scan] --> B[View Results];
+                <div class="rounded-md border border-border h-full overflow-hidden bg-card shadow-sm">
+                    <div class="p-8 flex gap-8 h-full">
+                        <!-- Left: Selection list -->
+                        <div class="w-1/3 flex flex-col border-r border-border pr-8">
+                            <h3 class="text-sm font-medium text-foreground mb-6">Select Resources</h3>
+                            
+                            <div class="mb-6">
+                                <h4 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Topics</h4>
+                                <div class="flex gap-2 mb-2">
+                                    <button onclick="selectAllDiagramTopics()" class="text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-all">All</button>
+                                    <button onclick="deselectAllDiagramTopics()" class="text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-all">None</button>
+                                </div>
+                                <div id="diagram-topic-list" class="overflow-auto rounded-md border border-border p-3 bg-background max-h-64">
+                                    <div class="text-xs text-muted-foreground">Scan resources first</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Queues</h4>
+                                <div class="flex gap-2 mb-2">
+                                    <button onclick="selectAllDiagramQueues()" class="text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-all">All</button>
+                                    <button onclick="deselectAllDiagramQueues()" class="text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-all">None</button>
+                                </div>
+                                <div id="diagram-queue-list" class="overflow-auto rounded-md border border-border p-3 bg-background max-h-64">
+                                    <div class="text-xs text-muted-foreground">Scan resources first</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Mermaid diagram -->
+                        <div class="flex-1 flex flex-col">
+                            <h3 class="text-sm font-medium text-foreground mb-6">Diagram</h3>
+                            <div class="flex-1 overflow-auto rounded-md border border-border bg-white p-8">
+                                <div class="mermaid" id="mermaid-graph">
+                                    graph TD;
+                                    A[Select resources to view diagram] --> B[Diagram will appear here];
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -503,6 +432,8 @@
         </div>
     </main>
 
+    <!-- React build -->
+    <script type="module" src="{{ url_for('static', filename='react/main.js') }}"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
     <script>
         // Initialize Lucide icons
@@ -541,13 +472,13 @@
             // Update buttons
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 // Reset to inactive state
-                btn.classList.remove('bg-background', 'text-foreground', 'shadow-sm');
-                btn.classList.add('hover:text-foreground');
+                btn.classList.remove('border-primary', 'text-foreground');
+                btn.classList.add('border-transparent', 'text-muted-foreground', 'hover:text-foreground');
 
                 if (btn.dataset.tab === tabName) {
                     // Set active state
-                    btn.classList.add('bg-background', 'text-foreground', 'shadow-sm');
-                    btn.classList.remove('hover:text-foreground');
+                    btn.classList.add('border-primary', 'text-foreground');
+                    btn.classList.remove('border-transparent', 'text-muted-foreground', 'hover:text-foreground');
                 }
             });
         }

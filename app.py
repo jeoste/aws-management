@@ -371,6 +371,141 @@ def export_sql():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/export/canvas", methods=["POST"])
+def export_canvas():
+    """Export inventory to JSON Canvas format (compatible with Obsidian)"""
+    inventory = request.json
+    try:
+        # JSON Canvas structure: { "nodes": [...], "edges": [...] }
+        nodes = []
+        edges = []
+        
+        # Build maps for positioning
+        topic_map = {}
+        queue_map = {}
+        arn_to_node_id = {}
+        node_id_counter = 1
+        
+        # Layout parameters
+        start_x = 100
+        start_y = 100
+        topic_x = start_x
+        topic_y = start_y
+        queue_x = start_x + 400
+        queue_y = start_y
+        spacing_y = 120
+        node_width = 200
+        node_height = 80
+        
+        # Collect all topics and queues
+        all_topics = []
+        all_queues = []
+        topic_to_queues = {}
+        
+        for item in inventory:
+            region = item.get("region", "")
+            for t in item.get("topics", []):
+                topic_arn = t.get("arn")
+                topic_name = t.get("name", "")
+                all_topics.append({
+                    "arn": topic_arn,
+                    "name": topic_name,
+                    "region": region
+                })
+                if topic_arn not in topic_to_queues:
+                    topic_to_queues[topic_arn] = []
+                topic_map[topic_arn] = {"name": topic_name, "region": region}
+            
+            for q in item.get("queues", []):
+                queue_arn = q.get("arn")
+                queue_name = q.get("name", "")
+                all_queues.append({
+                    "arn": queue_arn,
+                    "name": queue_name,
+                    "region": region
+                })
+                queue_map[queue_arn] = {"name": queue_name, "region": region}
+            
+            for link in item.get("links", []):
+                topic_arn = link.get("from_arn")
+                queue_arn = link.get("to_arn")
+                if topic_arn and queue_arn:
+                    if topic_arn not in topic_to_queues:
+                        topic_to_queues[topic_arn] = []
+                    topic_to_queues[topic_arn].append(queue_arn)
+        
+        # Create topic nodes
+        current_topic_y = topic_y
+        for topic in all_topics:
+            topic_arn = topic["arn"]
+            node_id = f"node_{node_id_counter}"
+            arn_to_node_id[topic_arn] = node_id
+            node_id_counter += 1
+            
+            # Create topic node
+            nodes.append({
+                "id": node_id,
+                "type": "text",
+                "x": topic_x,
+                "y": current_topic_y,
+                "width": node_width,
+                "height": node_height,
+                "text": f"**{topic['name']}**\n*Topic*\n{topic['region']}",
+                "color": "1"
+            })
+            current_topic_y += spacing_y
+        
+        # Create queue nodes
+        current_queue_y = queue_y
+        for queue in all_queues:
+            queue_arn = queue["arn"]
+            node_id = f"node_{node_id_counter}"
+            arn_to_node_id[queue_arn] = node_id
+            node_id_counter += 1
+            
+            # Create queue node
+            nodes.append({
+                "id": node_id,
+                "type": "text",
+                "x": queue_x,
+                "y": current_queue_y,
+                "width": node_width,
+                "height": node_height,
+                "text": f"**{queue['name']}**\n*Queue*\n{queue['region']}",
+                "color": "2"
+            })
+            current_queue_y += spacing_y
+        
+        # Create edges (connections from topics to queues)
+        edge_id_counter = 1
+        for topic_arn, queue_arns in topic_to_queues.items():
+            topic_node_id = arn_to_node_id.get(topic_arn)
+            if not topic_node_id:
+                continue
+            
+            for queue_arn in queue_arns:
+                queue_node_id = arn_to_node_id.get(queue_arn)
+                if not queue_node_id:
+                    continue
+                
+                edges.append({
+                    "id": f"edge_{edge_id_counter}",
+                    "fromNode": topic_node_id,
+                    "fromSide": "right",
+                    "toNode": queue_node_id,
+                    "toSide": "left"
+                })
+                edge_id_counter += 1
+        
+        canvas_data = {
+            "nodes": nodes,
+            "edges": edges
+        }
+        
+        return jsonify(canvas_data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/export/drawio", methods=["POST"])
 def export_drawio():
     inventory = request.json

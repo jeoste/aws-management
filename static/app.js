@@ -176,7 +176,6 @@ async function scanResources() {
             });
 
             updateTables();
-            updateDiagram(inventory);
             setStatus(`Scan complete. Found ${currentInventory.topics.length} topics and ${currentInventory.queues.length} queues.`, 'success');
         }
     } catch (e) {
@@ -199,8 +198,8 @@ function updateTables() {
     const orphanCount = currentInventory.queues.filter(q => !subscribedQueueArns.has(q.arn)).length;
     document.getElementById('count-orphan').textContent = orphanCount;
 
-    const rowClass = "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted";
-    const cellClass = "p-4 align-middle [&:has([role=checkbox])]:pr-0";
+    const rowClass = "border-b border-border transition-colors hover:bg-muted/40 data-[state=selected]:bg-muted";
+    const cellClass = "px-6 py-4 align-middle [&:has([role=checkbox])]:pr-0";
 
     // Update Topics
     const topicsBody = document.getElementById('list-topics');
@@ -261,7 +260,7 @@ function updateTables() {
             <td class="${cellClass}">
                 <div class="flex flex-wrap gap-1">
                     ${group.queues.map(q => `
-                        <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                        <span class="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium transition-colors bg-muted text-muted-foreground hover:bg-muted/80">
                             ${q}
                         </span>
                     `).join('')}
@@ -295,6 +294,190 @@ function updateTables() {
     }
 
     updateRealtimeQueueList();
+    updateDiagramLists();
+}
+
+function updateDiagramLists() {
+    // Wait for React to be loaded
+    if (typeof window.mountDiagramCheckboxes === 'undefined') {
+        console.warn('React components not loaded yet, retrying...');
+        setTimeout(updateDiagramLists, 100);
+        return;
+    }
+
+    // Update diagram topic list with React
+    const diagramTopicContainer = document.getElementById('diagram-topic-list');
+    if (diagramTopicContainer) {
+        if (currentInventory.topics.length === 0) {
+            diagramTopicContainer.innerHTML = '<div class="text-xs text-muted-foreground">Scan resources first</div>';
+        } else {
+            const topics = currentInventory.topics.map(t => ({ arn: t.arn, name: t.name }));
+            window.mountDiagramCheckboxes('diagram-topic-list', 'topics', topics, updateDiagramFromSelection);
+        }
+    }
+    
+    // Update diagram queue list with React
+    const diagramQueueContainer = document.getElementById('diagram-queue-list');
+    if (diagramQueueContainer) {
+        if (currentInventory.queues.length === 0) {
+            diagramQueueContainer.innerHTML = '<div class="text-xs text-muted-foreground">Scan resources first</div>';
+        } else {
+            const queues = currentInventory.queues.map(q => ({ arn: q.arn, name: q.name }));
+            window.mountDiagramCheckboxes('diagram-queue-list', 'queues', queues, updateDiagramFromSelection);
+        }
+    }
+}
+
+function selectAllDiagramTopics() {
+    if (window.diagramCheckboxRefs && window.diagramCheckboxRefs.topics && window.diagramCheckboxRefs.topics.current) {
+        window.diagramCheckboxRefs.topics.current.selectAll();
+    }
+}
+
+function deselectAllDiagramTopics() {
+    if (window.diagramCheckboxRefs && window.diagramCheckboxRefs.topics && window.diagramCheckboxRefs.topics.current) {
+        window.diagramCheckboxRefs.topics.current.deselectAll();
+    }
+}
+
+function selectAllDiagramQueues() {
+    if (window.diagramCheckboxRefs && window.diagramCheckboxRefs.queues && window.diagramCheckboxRefs.queues.current) {
+        window.diagramCheckboxRefs.queues.current.selectAll();
+    }
+}
+
+function deselectAllDiagramQueues() {
+    if (window.diagramCheckboxRefs && window.diagramCheckboxRefs.queues && window.diagramCheckboxRefs.queues.current) {
+        window.diagramCheckboxRefs.queues.current.deselectAll();
+    }
+}
+
+function getSelectedDiagramTopics() {
+    if (window.diagramCheckboxRefs && window.diagramCheckboxRefs.topics && window.diagramCheckboxRefs.topics.current) {
+        return window.diagramCheckboxRefs.topics.current.getSelectedArns();
+    }
+    return [];
+}
+
+function getSelectedDiagramQueues() {
+    if (window.diagramCheckboxRefs && window.diagramCheckboxRefs.queues && window.diagramCheckboxRefs.queues.current) {
+        return window.diagramCheckboxRefs.queues.current.getSelectedArns();
+    }
+    return [];
+}
+
+function getFilteredInventoryFromDiagramSelection() {
+    const selectedTopicArns = getSelectedDiagramTopics();
+    const selectedQueueArns = getSelectedDiagramQueues();
+    
+    // If nothing selected, return null to use full inventory
+    if (selectedTopicArns.length === 0 && selectedQueueArns.length === 0) {
+        return null;
+    }
+    
+    // Build sets of selected resources
+    const selectedTopics = new Set(selectedTopicArns);
+    const selectedQueues = new Set(selectedQueueArns);
+    
+    // Find related resources (topics linked to selected queues, queues linked to selected topics)
+    const relatedTopics = new Set(selectedTopics);
+    const relatedQueues = new Set(selectedQueues);
+    
+    // Add queues that are subscribed to selected topics
+    currentInventory.links.forEach(link => {
+        if (selectedTopics.has(link.from_arn)) {
+            relatedQueues.add(link.to_arn);
+        }
+    });
+    
+    // Add topics that have subscriptions to selected queues
+    currentInventory.links.forEach(link => {
+        if (selectedQueues.has(link.to_arn)) {
+            relatedTopics.add(link.from_arn);
+        }
+    });
+    
+    // Build filtered inventory for diagram
+    const filteredInventory = [];
+    const topicMap = {};
+    const queueMap = {};
+    
+    // Group by region
+    const byRegion = {};
+    currentInventory.topics.forEach(t => {
+        if (!byRegion[t.region]) byRegion[t.region] = { topics: [], queues: [], links: [] };
+        if (relatedTopics.has(t.arn)) {
+            byRegion[t.region].topics.push(t);
+            topicMap[t.arn] = t;
+        }
+    });
+    
+    currentInventory.queues.forEach(q => {
+        if (!byRegion[q.region]) byRegion[q.region] = { topics: [], queues: [], links: [] };
+        if (relatedQueues.has(q.arn)) {
+            byRegion[q.region].queues.push(q);
+            queueMap[q.arn] = q;
+        }
+    });
+    
+    // Add links only between selected/related resources
+    currentInventory.links.forEach(link => {
+        if (relatedTopics.has(link.from_arn) && relatedQueues.has(link.to_arn)) {
+            const region = topicMap[link.from_arn]?.region || queueMap[link.to_arn]?.region;
+            if (region && byRegion[region]) {
+                byRegion[region].links.push(link);
+            }
+        }
+    });
+    
+    // Convert to inventory format
+    Object.keys(byRegion).forEach(region => {
+        const regionData = byRegion[region];
+        if (regionData.topics.length > 0 || regionData.queues.length > 0) {
+            filteredInventory.push({
+                region: region,
+                accountId: null,
+                topics: regionData.topics.map(t => ({ arn: t.arn, name: t.name })),
+                queues: regionData.queues.map(q => ({ arn: q.arn, name: q.name, url: q.url })),
+                links: regionData.links.map(l => ({ from_arn: l.from_arn, to_arn: l.to_arn, protocol: l.protocol, attributes: l.attributes }))
+            });
+        }
+    });
+    
+    return filteredInventory.length > 0 ? filteredInventory : null;
+}
+
+function updateDiagramFromSelection() {
+    const filteredInventory = getFilteredInventoryFromDiagramSelection();
+    
+    // If nothing selected, show empty diagram
+    if (!filteredInventory) {
+        const mermaidDiv = document.getElementById('mermaid-graph');
+        mermaidDiv.innerHTML = 'graph TD;\n    A[Select resources to view diagram] --> B[Diagram will appear here];';
+        mermaidDiv.removeAttribute('data-processed');
+        try {
+            // Use the same Linear theme configuration
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'base',
+                themeVariables: {
+                    primaryColor: '#5E6AD2',
+                    primaryTextColor: '#ffffff',
+                    lineColor: '#9B9B9B',
+                    secondaryColor: '#9B9B9B',
+                    background: '#ffffff',
+                    textColor: '#0A0A0A'
+                }
+            });
+            mermaid.init(undefined, mermaidDiv);
+        } catch (e) {
+            console.error("Mermaid init failed", e);
+        }
+        return;
+    }
+    
+    // Use the existing updateDiagram function
+    updateDiagram(filteredInventory);
 }
 
 function updateRealtimeQueueList() {
@@ -379,9 +562,68 @@ async function updateDiagram(inventoryList) {
         });
         const data = await res.json();
 
+        // Store the Mermaid code for export
+        window.lastMermaidCode = data.content;
+
         const mermaidDiv = document.getElementById('mermaid-graph');
         mermaidDiv.innerHTML = data.content;
         mermaidDiv.removeAttribute('data-processed');
+
+        // Configure Mermaid with Linear-inspired theme
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'base',
+            themeVariables: {
+                // Linear-inspired colors
+                primaryColor: '#5E6AD2',        // Linear blue for topics
+                primaryTextColor: '#ffffff',     // White text on primary
+                primaryBorderColor: '#5E6AD2',   // Blue border
+                lineColor: '#9B9B9B',           // Neutral gray for edges
+                secondaryColor: '#9B9B9B',       // Neutral gray for queues
+                secondaryTextColor: '#ffffff',   // White text on secondary
+                tertiaryColor: '#ffffff',       // White background
+                background: '#ffffff',           // White background
+                mainBkg: '#ffffff',             // Main background
+                secondBkg: '#9B9B9B',          // Secondary background (queues)
+                tertiaryBkg: '#ffffff',         // Tertiary background
+                textColor: '#0A0A0A',           // Near-black text
+                border1: '#E5E5E5',             // Subtle gray border
+                border2: '#9B9B9B',            // Neutral gray border
+                noteBkgColor: '#FAFAFA',        // Very light gray for notes
+                noteTextColor: '#0A0A0A',       // Dark text for notes
+                noteBorderColor: '#E5E5E5',     // Subtle border for notes
+                actorBorder: '#5E6AD2',          // Blue border for actors
+                actorBkg: '#5E6AD2',            // Blue background for actors
+                actorTextColor: '#ffffff',       // White text
+                actorLineColor: '#9B9B9B',      // Gray line
+                labelBoxBkgColor: '#ffffff',     // White label box
+                labelBoxBorderColor: '#E5E5E5',  // Subtle border
+                labelTextColor: '#0A0A0A',      // Dark text
+                loopTextColor: '#0A0A0A',       // Dark text
+                activationBorderColor: '#5E6AD2', // Blue activation border
+                activationBkgColor: '#5E6AD2',   // Blue activation background
+                sequenceNumberColor: '#ffffff',  // White sequence numbers
+                sectionBkgColor: '#FAFAFA',     // Light gray sections
+                altSectionBkgColor: '#F5F5F5',   // Slightly darker alt sections
+                sectionBorderColor: '#E5E5E5',   // Subtle section border
+                gridColor: '#E5E5E5',            // Subtle grid
+                doneTaskBkgColor: '#5E6AD2',     // Blue for done tasks
+                doneTaskBorderColor: '#5E6AD2',  // Blue border
+                activeTaskBkgColor: '#9B9B9B',   // Gray for active tasks
+                activeTaskBorderColor: '#9B9B9B', // Gray border
+                taskBkgColor: '#FAFAFA',         // Light gray for tasks
+                taskTextColor: '#0A0A0A',        // Dark text
+                taskTextLightColor: '#ffffff',    // White text on colored backgrounds
+                taskTextOutsideColor: '#0A0A0A', // Dark text outside
+                taskTextClickableColor: '#5E6AD2', // Blue clickable text
+                critBorderColor: '#5E6AD2',      // Blue critical border
+                critBkgColor: '#5E6AD2',         // Blue critical background
+                todayLineColor: '#5E6AD2',       // Blue today line
+                cScale0: '#5E6AD2',              // Blue scale 0
+                cScale1: '#9B9B9B',              // Gray scale 1
+                cScale2: '#E5E5E5'               // Light gray scale 2
+            }
+        });
 
         mermaid.init(undefined, mermaidDiv);
     } catch (e) {
@@ -395,34 +637,68 @@ async function exportData(format) {
         return;
     }
 
+    // Get filtered inventory from diagram selection, or use full inventory if nothing selected
+    const filteredInventory = getFilteredInventoryFromDiagramSelection();
+    const inventoryToExport = filteredInventory || window.rawInventory;
+
+    if (!inventoryToExport) {
+        alert("No data to export.");
+        return;
+    }
+
     if (format === 'json') {
-        downloadFile('inventory.json', JSON.stringify(currentInventory, null, 2));
+        // For JSON export, use currentInventory structure
+        if (filteredInventory) {
+            // Convert filtered inventory to currentInventory format
+            const exportData = {
+                topics: [],
+                queues: [],
+                links: []
+            };
+            filteredInventory.forEach(regionItem => {
+                regionItem.topics.forEach(t => exportData.topics.push({ ...t, region: regionItem.region }));
+                regionItem.queues.forEach(q => exportData.queues.push({ ...q, region: regionItem.region }));
+                regionItem.links.forEach(l => exportData.links.push({ ...l, region: regionItem.region }));
+            });
+            downloadFile('inventory.json', JSON.stringify(exportData, null, 2));
+        } else {
+            downloadFile('inventory.json', JSON.stringify(currentInventory, null, 2));
+        }
     } else if (format === 'mermaid') {
-        alert("Please use the 'Export JSON' to get the data, or copy the diagram text.");
-    } else if (format === 'sql') {
-        if (!window.rawInventory) {
-            alert("No data.");
+        if (!window.lastMermaidCode) {
+            alert("No diagram available. Please select resources in the Diagram tab first.");
             return;
         }
+        downloadFile('diagram.mmd', window.lastMermaidCode);
+    } else if (format === 'sql') {
         const res = await fetch('/api/export/sql', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(window.rawInventory)
+            body: JSON.stringify(inventoryToExport)
         });
         const data = await res.json();
         downloadFile('inventory.sql', data.content);
     } else if (format === 'drawio') {
-        if (!window.rawInventory) {
-            alert("No data.");
-            return;
-        }
         const res = await fetch('/api/export/drawio', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(window.rawInventory)
+            body: JSON.stringify(inventoryToExport)
         });
         const data = await res.json();
         downloadFile('inventory.drawio', data.content);
+    } else if (format === 'canvas') {
+        const res = await fetch('/api/export/canvas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(inventoryToExport)
+        });
+        const data = await res.json();
+        if (data.error) {
+            alert(`Export failed: ${data.error}`);
+            return;
+        }
+        // JSON Canvas format - download as .canvas file
+        downloadFile('inventory.canvas', JSON.stringify(data, null, 2));
     }
 }
 
@@ -539,6 +815,11 @@ function toggleRealtime() {
 
 async function fetchRealtimeMessages() {
     const log = document.getElementById('realtime-log');
+    if (!log) {
+        console.error('realtime-log element not found');
+        return;
+    }
+    
     try {
         console.debug('fetchRealtimeMessages called');
     } catch (e) {}
@@ -548,7 +829,7 @@ async function fetchRealtimeMessages() {
     // Check if we have scanned resources
     if (currentInventory.topics.length === 0 && currentInventory.queues.length === 0) {
         log.innerHTML = `
-            <div class="text-muted-foreground text-center py-8">
+            <div class="text-center py-8" style="color: hsl(var(--muted-foreground));">
                 Please scan resources first before monitoring
             </div>
         `;
@@ -560,7 +841,7 @@ async function fetchRealtimeMessages() {
 
     if (selectedQueueArns.length === 0) {
         log.innerHTML = `
-            <div class="text-muted-foreground text-center py-8">
+            <div class="text-center py-8" style="color: hsl(var(--muted-foreground));">
                 <div class="text-2xl mb-2">🔍</div>
                 <div class="font-semibold mb-2">Aucune ressource sélectionnée</div>
                 <div class="text-xs">Sélectionnez au moins une queue pour commencer la surveillance</div>
@@ -611,38 +892,46 @@ async function fetchRealtimeMessages() {
         if (messages.length > 0) {
             messages.forEach(msg => {
                 const timestamp = new Date(msg.timestamp).toLocaleTimeString();
-                const msgId = msg.message_id ? `<span class="text-xs text-muted-foreground ml-2">ID: ${msg.message_id.substring(0, 8)}...</span>` : '';
-                const bodyHtml = msg.body ? `<div class="mt-1 text-sm text-muted-foreground font-mono bg-muted/30 p-2 rounded">${escapeHtml(msg.body)}</div>` : '';
+                const msgId = msg.message_id ? `<span class="text-xs ml-2" style="color: hsl(var(--muted-foreground));">ID: ${msg.message_id.substring(0, 8)}...</span>` : '';
+                const bodyHtml = msg.body ? `<div class="mt-1 text-sm font-mono p-2 rounded" style="color: hsl(var(--muted-foreground)); background-color: hsl(var(--muted) / 0.3);">${escapeHtml(msg.body)}</div>` : '';
                 
                 // Color code based on type
-                let typeColor = 'bg-blue-500/10 text-blue-500';
+                let typeColorClass = '';
+                let typeColorStyle = '';
                 let typeIcon = '📨';
                 if (msg.type === 'message') {
-                    typeColor = 'bg-green-500/10 text-green-500';
+                    typeColorClass = 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300';
+                    typeColorStyle = 'background-color: rgba(34, 197, 94, 0.1); color: rgb(21, 128, 61);';
                     typeIcon = '✉️';
                 } else if (msg.type === 'error') {
-                    typeColor = 'bg-red-500/10 text-red-500';
+                    typeColorClass = 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300';
+                    typeColorStyle = 'background-color: rgba(239, 68, 68, 0.1); color: rgb(185, 28, 28);';
                     typeIcon = '⚠️';
                 } else if (msg.type === 'sent') {
-                    typeColor = 'bg-yellow-500/10 text-yellow-500';
+                    typeColorClass = 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300';
+                    typeColorStyle = 'background-color: rgba(234, 179, 8, 0.1); color: rgb(161, 98, 7);';
                     typeIcon = '📤';
                 } else if (msg.type === 'received') {
-                    typeColor = 'bg-purple-500/10 text-purple-500';
+                    typeColorClass = 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300';
+                    typeColorStyle = 'background-color: rgba(168, 85, 247, 0.1); color: rgb(126, 34, 206);';
                     typeIcon = '📥';
+                } else {
+                    typeColorClass = 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300';
+                    typeColorStyle = 'background-color: rgba(59, 130, 246, 0.1); color: rgb(29, 78, 216);';
                 }
                 
                 const messageHtml = `
-                    <div class="flex flex-col gap-1 p-3 rounded bg-muted/50 border border-border/50 mb-2">
+                    <div class="flex flex-col gap-1 p-3 rounded border mb-2" style="background-color: hsl(var(--muted) / 0.5); border-color: hsl(var(--border) / 0.5);">
                         <div class="flex items-start gap-2">
                             <span class="text-lg">${typeIcon}</span>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="text-primary font-medium">${msg.resource}</span>
-                                    <span class="text-xs ${typeColor} px-2 py-0.5 rounded font-semibold">${msg.type.toUpperCase()}</span>
-                                    <span class="text-xs text-muted-foreground">${msg.region}</span>
+                                    <span class="font-medium" style="color: hsl(var(--primary));">${msg.resource}</span>
+                                    <span class="text-xs px-2 py-0.5 rounded font-semibold ${typeColorClass}" style="${typeColorStyle}">${msg.type.toUpperCase()}</span>
+                                    <span class="text-xs" style="color: hsl(var(--muted-foreground));">${msg.region}</span>
                                     ${msgId}
                                 </div>
-                                <div class="text-xs text-muted-foreground mt-0.5">${timestamp}</div>
+                                <div class="text-xs mt-0.5" style="color: hsl(var(--muted-foreground));">${timestamp}</div>
                             </div>
                         </div>
                         ${bodyHtml}
@@ -668,7 +957,7 @@ async function fetchRealtimeMessages() {
             if (log.children.length === 0) {
                 // First poll with no messages
                 log.innerHTML = `
-                    <div class="text-muted-foreground text-center py-8">
+                    <div class="text-center py-8" style="color: hsl(var(--muted-foreground));">
                         <div class="text-2xl mb-2">👀</div>
                         <div>Surveillance active - en attente de messages...</div>
                         <div class="text-xs mt-2">Polling #${pollCount} - ${lastPollTime.toLocaleTimeString()}</div>
@@ -685,7 +974,7 @@ async function fetchRealtimeMessages() {
                 // Only show status every 5 polls to avoid spam
                 if (pollCount % 5 === 0) {
                     const statusHtml = `
-                        <div class="poll-status-indicator text-xs text-muted-foreground text-center py-2 border-t border-border/50 mt-2">
+                        <div class="poll-status-indicator text-xs text-center py-2 mt-2" style="color: hsl(var(--muted-foreground)); border-top: 1px solid hsl(var(--border) / 0.5);">
                             ⏱️ Monitoring actif - Dernier poll: ${lastPollTime.toLocaleTimeString()} (${pollCount} polls)
                         </div>
                     `;
@@ -697,21 +986,22 @@ async function fetchRealtimeMessages() {
         console.error('Failed to fetch realtime messages:', e);
         // Show error in UI for easier debugging
         try {
-            log.insertAdjacentHTML('afterbegin', `<div class="text-destructive text-sm p-2">Realtime error: ${escapeHtml(String(e))}</div>`);
+            log.insertAdjacentHTML('afterbegin', `<div class="text-sm p-2" style="color: hsl(var(--destructive));">Realtime error: ${escapeHtml(String(e))}</div>`);
         } catch (ee) {}
     }
     } catch (syncErr) {
         console.error('Synchronous error in fetchRealtimeMessages:', syncErr);
         try {
-            log.insertAdjacentHTML('afterbegin', `<div class="text-destructive text-sm p-2">Realtime sync error: ${escapeHtml(String(syncErr))}</div>`);
+            log.insertAdjacentHTML('afterbegin', `<div class="text-sm p-2" style="color: hsl(var(--destructive));">Realtime sync error: ${escapeHtml(String(syncErr))}</div>`);
         } catch (ee) {}
     }
 }
 
 function clearRealtimeLog() {
     const log = document.getElementById('realtime-log');
+    if (!log) return;
     log.innerHTML = `
-        <div class="text-muted-foreground text-center py-8">
+        <div class="text-center py-8" style="color: hsl(var(--muted-foreground));">
             Click "Start Monitoring" to begin tracking real-time message exchanges
         </div>
     `;

@@ -9,7 +9,7 @@
     align-items: center;
 }
 
-/* Scrollbar styling for Webkit */
+/* Scrollbar styling for Webkit - Linear-inspired subtle scrollbars */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -20,29 +20,133 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
+    background: hsl(var(--muted-foreground) / 0.2);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
+    background: hsl(var(--muted-foreground) / 0.35);
 }
 
-/* Ensure mermaid text is readable in dark mode */
+/* Linear-inspired Mermaid styling */
+.mermaid {
+    background: #ffffff !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.mermaid svg {
+    background: #ffffff !important;
+}
+
 .mermaid .node rect,
 .mermaid .node circle,
 .mermaid .node ellipse,
 .mermaid .node polygon,
 .mermaid .node path {
-    fill: hsl(var(--card)) !important;
-    stroke: hsl(var(--border)) !important;
     stroke-width: 1.5px !important;
+    rx: 4px !important; /* Subtle rounded corners */
+    ry: 4px !important;
 }
 
-.mermaid .node .label {
-    color: hsl(var(--foreground)) !important;
+/* Topic nodes - Linear blue (applied via classDef topic) */
+.mermaid .topic rect,
+.mermaid .topic circle,
+.mermaid .topic ellipse,
+.mermaid .topic polygon,
+.mermaid .topic path {
+    fill: #5E6AD2 !important;
+    stroke: #5E6AD2 !important;
 }
 
+.mermaid .topic .nodeLabel {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Queue nodes - Neutral gray (applied via classDef queue) */
+.mermaid .queue rect,
+.mermaid .queue circle,
+.mermaid .queue ellipse,
+.mermaid .queue polygon,
+.mermaid .queue path {
+    fill: #9B9B9B !important;
+    stroke: #9B9B9B !important;
+}
+
+.mermaid .queue .nodeLabel {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Default node label styling */
+.mermaid .nodeLabel {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+}
+
+/* Edges - Subtle gray */
 .mermaid .edgePath .path {
-    stroke: hsl(var(--muted-foreground)) !important;
+    stroke: #9B9B9B !important;
+    stroke-width: 1.5px !important;
+    opacity: 0.6;
+}
+
+.mermaid .edgeLabel {
+    background: #ffffff !important;
+    color: #0A0A0A !important;
+}
+
+/* Subgraph styling - Linear-inspired */
+.mermaid .cluster rect {
+    fill: #FAFAFA !important;
+    stroke: #E5E5E5 !important;
+    stroke-width: 1px !important;
+    rx: 6px !important;
+    ry: 6px !important;
+}
+
+.mermaid .cluster .label {
+    color: #0A0A0A !important;
+    font-weight: 500 !important;
+}
+
+/* Default node styling */
+.mermaid .node .label {
+    color: #0A0A0A !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Dark mode adjustments */
+.dark .mermaid {
+    background: #0D0D0D !important;
+}
+
+.dark .mermaid .cluster rect {
+    fill: #1A1A1A !important;
+    stroke: #2A2A2A !important;
+}
+
+.dark .mermaid .cluster .label {
+    color: #FAFAFA !important;
+}
+
+.dark .mermaid .edgeLabel {
+    background: #1A1A1A !important;
+    color: #FAFAFA !important;
+}
+
+/* Linear-inspired subtle shadows */
+.shadow-sm {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Table row hover effect */
+tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+tbody tr:hover {
+    background-color: hsl(var(--muted) / 0.4);
 }

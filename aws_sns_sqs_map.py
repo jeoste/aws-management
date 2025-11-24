@@ -192,13 +192,17 @@ def build_inventory(session: boto3.Session, regions: List[str]) -> List[Dict[str
 def to_mermaid(inventory: List[Dict[str, object]]) -> str:
     lines: List[str] = ["graph LR"]
     for item in inventory:
-        account = item.get("accountId") or "?"
+        account = item.get("accountId")
         region = item.get("region") or "?"
         topics: List[Dict[str, str]] = item.get("topics", [])  # type: ignore
         queues: List[Dict[str, str]] = item.get("queues", [])  # type: ignore
         links: List[Dict[str, object]] = item.get("links", [])  # type: ignore
 
-        lines.append(f"  subgraph {account} {region}")
+        # Only include accountId in subgraph title if it's available
+        if account:
+            lines.append(f"  subgraph {account} {region}")
+        else:
+            lines.append(f"  subgraph {region}")
         # Map ids stables pour Mermaid
         topic_ids: Dict[str, str] = {}
         queue_ids: Dict[str, str] = {}
@@ -213,7 +217,7 @@ def to_mermaid(inventory: List[Dict[str, object]]) -> str:
             qid = f"Q{idx}"
             queue_ids[q["arn"]] = qid
             label = q["name"].replace("\"", "'")
-            lines.append(f"    {qid}((Queue: {label})):::queue")
+            lines.append(f"    {qid}(Queue: {label}):::queue")
 
         for l in links:
             from_arn = l.get("from_arn")  # type: ignore
@@ -224,9 +228,12 @@ def to_mermaid(inventory: List[Dict[str, object]]) -> str:
                 lines.append(f"    {tid} --> {qid}")
         lines.append("  end")
 
-    # Styles basiques
-    lines.append("\nclassDef topic fill:#f0f9ff,stroke:#38bdf8,color:#0c4a6e;")
-    lines.append("classDef queue fill:#fef3c7,stroke:#f59e0b,color:#78350f;")
+    # Styles Linear-inspired: bleu subtil pour topics, gris neutre pour queues
+    # Primary blue: #5E6AD2 (Linear's signature blue)
+    # Muted gray: #9B9B9B (neutral gray)
+    # Background: white
+    lines.append("\nclassDef topic fill:#5E6AD2,stroke:#5E6AD2,stroke-width:1.5px,color:#ffffff;")
+    lines.append("classDef queue fill:#9B9B9B,stroke:#9B9B9B,stroke-width:1.5px,color:#ffffff;")
     return "\n".join(lines)
 
 
