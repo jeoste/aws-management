@@ -48,14 +48,14 @@
     ry: 4px !important;
 }
 
-/* Topic nodes - Linear blue (applied via classDef topic) */
+/* Topic nodes - Orange (applied via classDef topic) */
 .mermaid .topic rect,
 .mermaid .topic circle,
 .mermaid .topic ellipse,
 .mermaid .topic polygon,
 .mermaid .topic path {
-    fill: #5E6AD2 !important;
-    stroke: #5E6AD2 !important;
+    fill: #FF7A1A !important;
+    stroke: #FF7A1A !important;
 }
 
 .mermaid .topic .nodeLabel {

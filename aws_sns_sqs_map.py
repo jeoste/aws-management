@@ -228,11 +228,11 @@ def to_mermaid(inventory: List[Dict[str, object]]) -> str:
                 lines.append(f"    {tid} --> {qid}")
         lines.append("  end")
 
-    # Styles Linear-inspired: bleu subtil pour topics, gris neutre pour queues
-    # Primary blue: #5E6AD2 (Linear's signature blue)
+    # Styles Linear-inspired: orange pour topics, gris neutre pour queues
+    # Primary orange: #FF7A1A (orange accent)
     # Muted gray: #9B9B9B (neutral gray)
     # Background: white
-    lines.append("\nclassDef topic fill:#5E6AD2,stroke:#5E6AD2,stroke-width:1.5px,color:#ffffff;")
+    lines.append("\nclassDef topic fill:#FF7A1A,stroke:#FF7A1A,stroke-width:1.5px,color:#ffffff;")
     lines.append("classDef queue fill:#9B9B9B,stroke:#9B9B9B,stroke-width:1.5px,color:#ffffff;")
     return "\n".join(lines)
 

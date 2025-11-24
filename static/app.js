@@ -461,7 +461,7 @@ function updateDiagramFromSelection() {
                 startOnLoad: false,
                 theme: 'base',
                 themeVariables: {
-                    primaryColor: '#5E6AD2',
+                    primaryColor: '#FF7A1A',
                     primaryTextColor: '#ffffff',
                     lineColor: '#9B9B9B',
                     secondaryColor: '#9B9B9B',
@@ -575,9 +575,9 @@ async function updateDiagram(inventoryList) {
             theme: 'base',
             themeVariables: {
                 // Linear-inspired colors
-                primaryColor: '#5E6AD2',        // Linear blue for topics
+                primaryColor: '#FF7A1A',        // Orange for topics
                 primaryTextColor: '#ffffff',     // White text on primary
-                primaryBorderColor: '#5E6AD2',   // Blue border
+                primaryBorderColor: '#FF7A1A',   // Orange border
                 lineColor: '#9B9B9B',           // Neutral gray for edges
                 secondaryColor: '#9B9B9B',       // Neutral gray for queues
                 secondaryTextColor: '#ffffff',   // White text on secondary
@@ -592,34 +592,34 @@ async function updateDiagram(inventoryList) {
                 noteBkgColor: '#FAFAFA',        // Very light gray for notes
                 noteTextColor: '#0A0A0A',       // Dark text for notes
                 noteBorderColor: '#E5E5E5',     // Subtle border for notes
-                actorBorder: '#5E6AD2',          // Blue border for actors
-                actorBkg: '#5E6AD2',            // Blue background for actors
+                actorBorder: '#FF7A1A',          // Orange border for actors
+                actorBkg: '#FF7A1A',            // Orange background for actors
                 actorTextColor: '#ffffff',       // White text
                 actorLineColor: '#9B9B9B',      // Gray line
                 labelBoxBkgColor: '#ffffff',     // White label box
                 labelBoxBorderColor: '#E5E5E5',  // Subtle border
                 labelTextColor: '#0A0A0A',      // Dark text
                 loopTextColor: '#0A0A0A',       // Dark text
-                activationBorderColor: '#5E6AD2', // Blue activation border
-                activationBkgColor: '#5E6AD2',   // Blue activation background
+                activationBorderColor: '#FF7A1A', // Orange activation border
+                activationBkgColor: '#FF7A1A',   // Orange activation background
                 sequenceNumberColor: '#ffffff',  // White sequence numbers
                 sectionBkgColor: '#FAFAFA',     // Light gray sections
                 altSectionBkgColor: '#F5F5F5',   // Slightly darker alt sections
                 sectionBorderColor: '#E5E5E5',   // Subtle section border
                 gridColor: '#E5E5E5',            // Subtle grid
-                doneTaskBkgColor: '#5E6AD2',     // Blue for done tasks
-                doneTaskBorderColor: '#5E6AD2',  // Blue border
+                doneTaskBkgColor: '#FF7A1A',     // Orange for done tasks
+                doneTaskBorderColor: '#FF7A1A',  // Orange border
                 activeTaskBkgColor: '#9B9B9B',   // Gray for active tasks
                 activeTaskBorderColor: '#9B9B9B', // Gray border
                 taskBkgColor: '#FAFAFA',         // Light gray for tasks
                 taskTextColor: '#0A0A0A',        // Dark text
                 taskTextLightColor: '#ffffff',    // White text on colored backgrounds
                 taskTextOutsideColor: '#0A0A0A', // Dark text outside
-                taskTextClickableColor: '#5E6AD2', // Blue clickable text
-                critBorderColor: '#5E6AD2',      // Blue critical border
-                critBkgColor: '#5E6AD2',         // Blue critical background
-                todayLineColor: '#5E6AD2',       // Blue today line
-                cScale0: '#5E6AD2',              // Blue scale 0
+                taskTextClickableColor: '#FF7A1A', // Orange clickable text
+                critBorderColor: '#FF7A1A',      // Orange critical border
+                critBkgColor: '#FF7A1A',         // Orange critical background
+                todayLineColor: '#FF7A1A',       // Orange today line
+                cScale0: '#FF7A1A',              // Orange scale 0
                 cScale1: '#9B9B9B',              // Gray scale 1
                 cScale2: '#E5E5E5'               // Light gray scale 2
             }
@@ -775,7 +775,7 @@ function toggleRealtime() {
         lastPollTime = null;
     statusText.textContent = 'Start Monitoring';
     setToggleIcon(button, 'play');
-        // Switch button color back to primary (blue)
+        // Switch button color back to primary (orange)
         try {
             button.classList.remove('bg-destructive', 'text-destructive-foreground');
             button.classList.add('bg-primary', 'text-primary-foreground');
@@ -783,7 +783,7 @@ function toggleRealtime() {
             // ignore
         }
         // also set explicit inline color to ensure visual change
-        button.style.backgroundColor = 'rgb(2 132 199)'; // blue
+        button.style.backgroundColor = 'hsl(25, 90%, 55%)'; // orange
         button.style.color = '#ffffff';
         lucide.createIcons();
     } else {

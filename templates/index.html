@@ -205,7 +205,7 @@
         <div class="px-8 pt-8 pb-0">
             <div class="inline-flex h-10 items-center justify-center gap-1 border-b border-border">
                 <button onclick="switchTab('topics')"
-                    class="tab-btn active inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-foreground border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground"
+                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
                     data-tab="topics">
                     Topics
                 </button>
@@ -482,6 +482,9 @@
                 }
             });
         }
+
+        // Initialize active tab on page load
+        window.switchTab('topics');
     </script>
 </body>
 
