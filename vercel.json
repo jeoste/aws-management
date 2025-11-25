@@ -1,7 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "mkdir -p public && cp -r static public/",
   "framework": null,
+  "installCommand": "pip install -r requirements.txt",
+  "buildCommand": "echo 'No build needed'",
+  "outputDirectory": "public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/api/index" }
