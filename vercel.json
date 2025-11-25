@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "buildCommand": "",
+  "installCommand": "pip install -r requirements.txt",
+  "framework": null,
   "rewrites": [
     { "source": "/static/(.*)", "destination": "/static/$1" },
     { "source": "/api/(.*)", "destination": "/api/index" },
