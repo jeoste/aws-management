@@ -1,5 +1,7 @@
 boto3>=1.28,<2.0
-keyring>=24,<26
 flask>=3.0.0
 
-
+# keyring is optional - only used in local environment for credential storage
+# Not available/functional in serverless environments like Vercel
+# Uncomment for local development:
+# keyring>=24,<26

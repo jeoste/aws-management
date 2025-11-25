@@ -11,14 +11,29 @@ from datetime import datetime, timedelta
 
 from flask import Flask, render_template, request, jsonify, send_file
 import boto3
-import keyring
+
+# Keyring is optional - not available in serverless environments like Vercel
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+keyring = None
+if not IS_VERCEL:
+    try:
+        import keyring as _keyring
+        keyring = _keyring
+    except ImportError:
+        pass
 
 # Import logic from existing map script to reuse AWS logic
 # We need to make sure aws_sns_sqs_map is importable
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from aws_sns_sqs_map import get_session, build_inventory, to_mermaid
 
-app = Flask(__name__)
+# Configure Flask with absolute paths for Vercel compatibility
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
 SERVICE_NAME = "aws-sns-sqs-gui"
 
 @app.route("/")
@@ -28,7 +43,18 @@ def index():
 @app.route("/api/credentials", methods=["GET", "POST"])
 def credentials():
     if request.method == "GET":
-        # Load saved credentials
+        # Load saved credentials (only available in local environment with keyring)
+        if keyring is None:
+            # Serverless environment - no persistent storage
+            return jsonify({
+                "access_key": "",
+                "secret_key": "",
+                "session_token": "",
+                "profile": "",
+                "regions": "eu-central-1",
+                "remember": False,
+                "keyring_available": False
+            })
         try:
             ak = keyring.get_password(SERVICE_NAME, "aws_access_key_id") or ""
             sk = keyring.get_password(SERVICE_NAME, "aws_secret_access_key") or ""
@@ -41,7 +67,8 @@ def credentials():
                 "session_token": st,
                 "profile": pf,
                 "regions": regs,
-                "remember": bool(ak or pf)
+                "remember": bool(ak or pf),
+                "keyring_available": True
             })
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -55,6 +82,10 @@ def credentials():
         st = data.get("session_token", "").strip()
         pf = data.get("profile", "").strip()
         regs = data.get("regions", "").strip()
+
+        # Keyring operations only available in local environment
+        if keyring is None:
+            return jsonify({"status": "keyring_unavailable", "message": "Credential storage not available in serverless environment"})
 
         if remember:
             try:
