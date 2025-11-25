@@ -1,9 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "",
+  "buildCommand": "mkdir -p public && cp -r static public/",
   "framework": null,
   "rewrites": [
-    { "source": "/static/(.*)", "destination": "/static/$1" },
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/api/index" }
   ]
