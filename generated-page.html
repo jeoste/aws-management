@@ -1,0 +1,751 @@
+<html lang="en" class="scroll-smooth"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS // MANAGEMENT | Enterprise Cloud Infrastructure</title>
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- GSAP & Lenis -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/@studio-freight/lenis@1.0.29/dist/lenis.min.js"></script>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+tailwind.config = {
+    theme: {
+        extend: {
+            colors: {
+                accent: '#FF9900', /* AWS Orange style */
+                surface: '#0F0F0F',
+                subtle: '#2a2a2a'
+            },
+            fontFamily: {
+                sans: ['Inter', 'sans-serif'],
+                display: ['Space Grotesk', 'sans-serif'],
+                mono: ['JetBrains Mono', 'monospace'],
+            },
+            animation: {
+                'spin-slow': 'spin 15s linear infinite',
+                'reverse-spin': 'spin 20s linear infinite reverse',
+                'marquee': 'marquee 30s linear infinite',
+                'scan': 'scan 4s linear infinite',
+                'blink': 'blink 2s ease-in-out infinite',
+                'dash': 'dash 20s linear infinite',
+                'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+                marquee: {
+                    '0%': { transform: 'translateX(0)' },
+                    '100%': { transform: 'translateX(-33.333%)' },
+                },
+                scan: {
+                    '0%': { top: '-20%' },
+                    '100%': { top: '120%' },
+                },
+                blink: {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.3 },
+                },
+                dash: {
+                    to: { 'stroke-dashoffset': '1000' }
+                }
+            }
+        }
+    }
+}
+</script>
+<style>
+/* --- CORE SETTINGS --- */
+html {
+    background-color: #050505;
+}
+body {
+    margin: 0; padding: 0;
+    background-color: transparent;
+    color: #e0e0e0;
+    overflow-x: hidden;
+    cursor: auto;
+}
+/* --- UTILS --- */
+.glass-panel {
+    background: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+    overflow: hidden;
+}
+/* Spotlight Effect */
+.spotlight-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: inherit;
+    background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.04), transparent 40%);
+    z-index: 2; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+}
+.spotlight-card:hover::before { opacity: 1; }
+.spotlight-card::after {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: inherit; padding: 1px;
+    background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 153, 0, 0.3), transparent 40%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    z-index: 3; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+}
+.spotlight-card:hover::after { opacity: 1; }
+
+.marquee-mask {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+.scan-line {
+    position: absolute; left: 0; width: 100%; height: 50px;
+    background: linear-gradient(to bottom, transparent, rgba(255, 153, 0, 0.3), transparent);
+    opacity: 0.5; animation: scan 3s linear infinite; z-index: 10; pointer-events: none;
+}
+.noise-overlay {
+    position: fixed; inset: 0; z-index: 9000; pointer-events: none; opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+.btn-magnetic { display: inline-block; }
+.dot-grid {
+    background-image: radial-gradient(rgba(255,255,255,0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+.skew-target { will-change: transform; }
+
+/* Custom UI Elements */
+.custom-checkbox input:checked + div {
+    background-color: #FF9900;
+    border-color: #FF9900;
+}
+.custom-checkbox input:checked + div svg {
+    display: block;
+}
+.custom-toggle input:checked + div {
+    background-color: #FF9900;
+}
+.custom-toggle input:checked + div span {
+    transform: translateX(100%);
+}
+
+</style>
+</head>
+<body class="antialiased selection:bg-accent selection:text-black">
+
+    <!-- GLOBAL BACKDROP -->
+    <div class="fixed inset-0 bg-[#050505] -z-50"></div>
+
+    <!-- 3D BACKGROUND -->
+    <div class="aura-background-component fixed top-0 w-full h-screen -z-10 opacity-60" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent)">
+        <div class="absolute inset-0 bg-gradient-to-tr from-[#050505] via-[#0a0a0a] to-[#151515]"></div>
+        <div class="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-accent/10 rounded-full blur-[120px] mix-blend-screen"></div>
+        <div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-[100px] mix-blend-screen"></div>
+    </div>
+
+    <!-- NOISE LAYER -->
+    <div class="noise-overlay"></div>
+    
+    <!-- NAVIGATION -->
+    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <a href="#" class="group hover-trigger">
+                <span class="font-display font-semibold text-xl tracking-tighter text-white group-hover:text-accent transition-colors">AWS<span class="text-accent group-hover:text-white transition-colors">//</span>MNGT</span>
+            </a>
+            <div class="hidden md:flex gap-8 text-xs font-mono tracking-widest text-gray-400">
+                <a href="#dashboard" class="hover:text-white transition-colors hover-trigger">[01] QUEUES</a>
+                <a href="#topics" class="hover:text-white transition-colors hover-trigger">[02] TOPICS</a>
+                <a href="#pipeline" class="hover:text-white transition-colors hover-trigger">[03] PIPELINE</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="hidden lg:flex text-[10px] font-mono text-green-500 items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    REGION: US-EAST-1
+                </span>
+                <button class="border border-white/20 px-6 py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-white hover:text-black transition-all hover-trigger btn-magnetic">
+                    Console Access
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <!-- HERO SECTION -->
+        <section class="skew-target relative h-screen w-full flex flex-col justify-center items-center overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505] z-10 pointer-events-none"></div>
+            
+            <div class="relative z-20 text-center max-w-5xl px-6">
+                <div class="inline-flex items-center gap-3 border border-white/10 bg-white/5 px-4 py-1.5 rounded-full mb-8 backdrop-blur-sm">
+                    <span class="font-mono text-[10px] text-accent tracking-widest uppercase">v2.5.0 Production Ready</span>
+                </div>
+                <h1 class="font-display font-semibold text-6xl md:text-9xl tracking-tight mb-6 leading-[0.9] text-white mix-blend-screen scramble-text">
+                    CLOUD <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-400 to-gray-600">ORCHESTRATION</span>
+                </h1>
+                <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-10 font-light">
+                    Unified control plane for asynchronous messaging. <br>
+                    Manage SQS queues and SNS topics with zero latency visibility.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                    <button class="bg-accent text-black px-8 py-4 font-semibold text-sm uppercase tracking-widest hover:bg-white transition-all hover-trigger w-full sm:w-auto btn-magnetic">
+                        Launch Instance
+                    </button>
+                    <button class="px-8 py-4 border border-white/20 text-white font-semibold text-sm uppercase tracking-widest hover:bg-white/10 transition-all hover-trigger w-full sm:w-auto btn-magnetic">
+                        Read Docs
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- MARQUEE -->
+        <div class="border-y border-white/5 bg-[#080808] py-8 relative z-20 overflow-hidden marquee-mask w-full">
+            <div class="flex whitespace-nowrap animate-marquee w-[max-content]">
+                <div class="flex gap-20 px-10 items-center">
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5"></i> SQS_STANDARD</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="radio" class="w-5 h-5"></i> SNS_TOPICS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5"></i> LAMBDA_TRIGGERS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="activity" class="w-5 h-5"></i> KINESIS_STREAMS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="database" class="w-5 h-5"></i> DYNAMODB</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="shield" class="w-5 h-5"></i> IAM_ROLES</span>
+                </div>
+                <div class="flex gap-20 px-10 items-center">
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5"></i> SQS_STANDARD</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="radio" class="w-5 h-5"></i> SNS_TOPICS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5"></i> LAMBDA_TRIGGERS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="activity" class="w-5 h-5"></i> KINESIS_STREAMS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="database" class="w-5 h-5"></i> DYNAMODB</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="shield" class="w-5 h-5"></i> IAM_ROLES</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BENTO FEATURES / DASHBOARD -->
+        <section id="dashboard" class="skew-target py-32 px-6 relative z-20">
+            <div class="max-w-7xl mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-end mb-16 border-b border-white/10 pb-8">
+                    <div>
+                        <span class="text-accent font-mono text-xs tracking-widest block mb-2">/// INFRASTRUCTURE HEALTH</span>
+                        <h2 class="font-display font-semibold text-white text-4xl md:text-5xl scramble-text">Live Statistics</h2>
+                    </div>
+                    <div class="text-right flex flex-col gap-4">
+                         <!-- Custom UI: Toggle -->
+                         <label class="custom-toggle flex items-center justify-end cursor-pointer group">
+                            <span class="mr-3 text-[10px] font-mono uppercase text-gray-400 group-hover:text-white transition-colors">Production Mode</span>
+                            <div class="relative">
+                                <input type="checkbox" class="sr-only" checked="">
+                                <div class="w-10 h-5 bg-white/10 rounded-full shadow-inner transition-colors duration-300 ease-in-out">
+                                    <span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ease-in-out"></span>
+                                </div>
+                            </div>
+                        </label>
+                        <p class="text-gray-500 font-mono text-xs uppercase tracking-widest">
+                            Queues Active: 142
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 grid-rows-3 gap-6 h-auto md:h-[900px]">
+                    <!-- Message Throughput Graph -->
+                    <div class="md:col-span-2 md:row-span-2 glass-panel spotlight-card rounded-xl overflow-hidden relative group">
+                        <div class="scan-line"></div>
+                        <!-- Simulated Chart Background -->
+                        <svg class="absolute inset-0 w-full h-full text-accent/20" preserveAspectRatio="none">
+                            <path d="M0,300 Q150,250 300,280 T600,200 T900,100 L900,400 L0,400 Z" fill="currentColor" opacity="0.1"></path>
+                            <path d="M0,300 Q150,250 300,280 T600,200 T900,100" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+                        </svg>
+                        
+                        <div class="absolute top-6 right-6 flex gap-2">
+                             <div class="border border-white/20 bg-black/50 px-3 py-1 rounded text-[10px] font-mono text-accent">FIFO_ORDERING</div>
+                             <div class="border border-white/20 bg-black/50 px-3 py-1 rounded text-[10px] font-mono text-gray-400">POLLING</div>
+                        </div>
+
+                        <div class="absolute bottom-0 left-0 p-8 z-10 w-full">
+                            <div class="w-10 h-10 bg-accent flex items-center justify-center mb-4 text-black rounded-lg">
+                                <i data-lucide="bar-chart-2" class="w-6 h-6 stroke-[1.5]"></i>
+                            </div>
+                            <h3 class="font-display font-semibold text-2xl text-white mb-2">Queue Velocity</h3>
+                            <p class="text-gray-300 text-sm max-w-sm">Real-time ingestion tracking. Currently processing 45k messages/sec across all AZs.</p>
+                        </div>
+                    </div>
+
+                    <!-- Visibility Timeout -->
+                    <div class="md:col-span-1 md:row-span-1 glass-panel spotlight-card rounded-xl p-6 flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="font-mono text-[10px] text-gray-500 uppercase">Latency</span>
+                            <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                        </div>
+                        <div class="text-center py-2">
+                            <div class="text-4xl font-display font-semibold text-white counter">24<span class="text-sm text-gray-500 ml-1">ms</span></div>
+                            <div class="text-[10px] text-gray-500 mt-1">Avg. Processing Time</div>
+                        </div>
+                    </div>
+
+                    <!-- KMS Encryption -->
+                    <div class="md:col-span-1 md:row-span-1 glass-panel spotlight-card rounded-xl p-6 flex flex-col justify-between overflow-hidden">
+                        <div class="flex items-center gap-2 text-white mb-2">
+                            <i data-lucide="lock" class="w-4 h-4 stroke-[1.5]"></i>
+                            <span class="font-display font-semibold text-sm">KMS Encrypted</span>
+                        </div>
+                        <div class="relative h-12 overflow-hidden font-mono text-[9px] text-gray-600 leading-relaxed">
+                            <div class="animate-[marquee_5s_linear_infinite_reverse] flex flex-col">
+                                <span>arn:aws:kms:us-east-1:KEY_ID_01</span>
+                                <span>arn:aws:kms:us-east-1:KEY_ID_02</span>
+                                <span>arn:aws:kms:us-east-1:KEY_ID_03</span>
+                            </div>
+                        </div>
+                        <div class="text-[10px] text-accent mt-2 flex items-center gap-1">
+                            <span class="w-1 h-1 bg-accent rounded-full"></span> SSE-SQS ENABLED
+                        </div>
+                    </div>
+
+                    <!-- Dead Letter Queue (DLQ) -->
+                    <div class="md:col-span-1 md:row-span-1 glass-panel spotlight-card rounded-xl p-6 flex flex-col justify-between">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-mono text-[10px] text-gray-500 uppercase">DLQ Depth</span>
+                            <i data-lucide="alert-triangle" class="w-3 h-3 text-red-500 stroke-[1.5]"></i>
+                        </div>
+                        <div class="flex-grow flex items-center justify-center">
+                            <div class="text-2xl font-mono text-white">0</div>
+                        </div>
+                        <div class="w-full bg-white/10 h-1 rounded overflow-hidden mt-2">
+                            <div class="w-0 bg-red-500 h-full"></div>
+                        </div>
+                        <div class="text-right text-[10px] text-gray-500 font-mono mt-1">HEALTHY</div>
+                    </div>
+
+                    <!-- Subscriptions -->
+                    <div class="md:col-span-1 md:row-span-1 glass-panel spotlight-card rounded-xl p-6 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-blue-900/10 z-0"></div>
+                        <div class="relative z-10 flex flex-col h-full justify-between">
+                            <div class="flex justify-between items-start">
+                                <span class="font-display font-semibold text-sm text-white">Topic Fan-out</span>
+                                <i data-lucide="share-2" class="w-4 h-4 text-blue-400 stroke-[1.5]"></i>
+                            </div>
+                            <div class="font-mono text-[10px] text-blue-300/70 space-y-1">
+                                <div class="flex justify-between"><span>HTTP/S</span> <span>245</span></div>
+                                <div class="flex justify-between"><span>Lambda</span> <span>892</span></div>
+                                <div class="flex justify-between"><span>SQS</span> <span>1.2k</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Storage Util -->
+                    <div class="md:col-span-2 md:row-span-1 glass-panel spotlight-card rounded-xl p-8 flex items-center justify-between hover-trigger">
+                         <div>
+                            <h3 class="font-display font-semibold text-xl text-white mb-2">Message Retention</h3>
+                            <div class="flex items-center gap-4 text-xs text-gray-400 font-mono">
+                                <label class="custom-checkbox flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only" checked="">
+                                    <div class="w-4 h-4 border border-white/20 rounded mr-2 flex items-center justify-center transition-colors">
+                                        <svg class="w-3 h-3 text-black hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                    </div>
+                                    <span>Auto-Delete (14 Days)</span>
+                                </label>
+                            </div>
+                         </div>
+                         <div class="flex flex-col gap-1.5 w-40">
+                            <div class="flex justify-between text-[8px] text-gray-500 font-mono mb-1">
+                                <span>QUOTA</span>
+                                <span>32%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-accent to-yellow-500 w-[32%] rounded-full"></div>
+                            </div>
+                         </div>
+                    </div>
+
+                    <!-- Regional Map -->
+                    <div class="md:col-span-2 md:row-span-1 glass-panel spotlight-card rounded-xl p-6 relative overflow-hidden flex flex-col justify-center">
+                        <div class="absolute inset-0 dot-grid opacity-30"></div>
+                        <div class="flex justify-between items-center mb-2 z-10 absolute top-6 left-6 right-6">
+                            <span class="font-display font-semibold text-white text-lg">Cross-Region Replication</span>
+                            <span class="text-accent text-xs font-mono border border-accent/30 px-2 py-0.5 rounded">SYNC</span>
+                        </div>
+                        <div class="relative w-full h-full z-0 mt-8 opacity-60">
+                             <!-- Abstract Map Connection -->
+                            <div class="absolute top-[50%] left-[20%] w-2 h-2 bg-accent rounded-full animate-pulse shadow-[0_0_10px_#FF9900]"></div>
+                            <div class="absolute top-[50%] right-[20%] w-2 h-2 bg-white rounded-full"></div>
+                             <svg class="absolute inset-0 w-full h-full" style="pointer-events: none;">
+                                <path d="M120 75 Q 300 0 480 75" fill="none" stroke="rgba(255, 153, 0, 0.4)" stroke-width="1" stroke-dasharray="4 4" class="animate-dash"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DEVELOPER SECTION -->
+        <section id="developers" class="skew-target py-24 bg-[#050505] border-t border-white/5 relative z-20">
+            <div class="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div>
+                    <span class="text-accent font-mono text-xs tracking-widest block mb-4">/// SDK INTEGRATION</span>
+                    <h2 class="font-display font-semibold text-4xl md:text-5xl mb-6 text-white scramble-text">Build for Scale</h2>
+                    <p class="text-gray-400 text-lg mb-8 leading-relaxed">
+                        Integrate seamlessly with Boto3. Automate queue creation, topic subscriptions, and dead-letter handling with a few lines of python.
+                    </p>
+                    <div class="space-y-6">
+                        <div class="group flex gap-4 p-4 border border-transparent hover:border-white/10 rounded-lg transition-all cursor-pointer hover-trigger">
+                            <div class="font-mono text-gray-600 text-sm group-hover:text-accent">01</div>
+                            <div>
+                                <h4 class="font-semibold text-white">Create Queue</h4>
+                                <p class="text-sm text-gray-500">Standard or FIFO with content dedup.</p>
+                            </div>
+                        </div>
+                        <div class="group flex gap-4 p-4 border border-transparent hover:border-white/10 rounded-lg transition-all cursor-pointer hover-trigger">
+                            <div class="font-mono text-gray-600 text-sm group-hover:text-accent">02</div>
+                            <div>
+                                <h4 class="font-semibold text-white">Publish Topic</h4>
+                                <p class="text-sm text-gray-500">Fan-out to HTTP, Email, and Lambda.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative group hover-trigger">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-accent to-yellow-600 rounded-lg blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                    <div class="relative bg-[#0a0a0a] border border-white/10 rounded-lg p-6 font-mono text-sm shadow-2xl overflow-hidden min-h-[300px]">
+                        <div class="flex gap-2 mb-6 border-b border-white/5 pb-4">
+                            <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                        </div>
+                        <div class="text-gray-400">
+                            <span class="text-purple-400">import</span> boto3<br><br>
+                            <span class="text-gray-600"># Initialize SQS client</span><br>
+                            sqs = boto3.client(<span class="text-green-400">'sqs'</span>, region_name=<span class="text-green-400">'us-east-1'</span>)<br><br>
+                            <span class="text-gray-600"># Send message to queue</span><br>
+                            response = sqs.send_message(<br>
+                            &nbsp;&nbsp;QueueUrl=<span class="text-green-400">'https://sqs.us-east-1...'</span>,<br>
+                            &nbsp;&nbsp;MessageBody=<span class="text-green-400">'{"order_id": "89201"}'</span>,<br>
+                            &nbsp;&nbsp;MessageAttributes={<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-green-400">'Type'</span>: {<span class="text-green-400">'StringValue'</span>: <span class="text-green-400">'Order'</span>, <span class="text-green-400">'DataType'</span>: <span class="text-green-400">'String'</span>}<br>
+                            &nbsp;&nbsp;}<br>
+                            )<br>
+                            print(response[<span class="text-green-400">'MessageId'</span>])
+                        </div>
+                        <div class="mt-2 text-accent animate-pulse">_</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PIPELINE SECTION (STICKY FIXED) -->
+        <section id="pipeline" class="py-24 bg-[#050505] relative z-20 border-t border-white/5">
+            <div class="max-w-[1400px] mx-auto px-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 relative">
+                    
+                    <!-- Left Column: Sticky Visual -->
+                    <div class="order-2 lg:order-1 relative">
+                        <div class="sticky top-24 w-full aspect-square max-h-[60vh] bg-[#080808] border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center p-10 group shadow-2xl">
+                            <!-- Background Grid -->
+                            <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+                            
+                            <!-- Central Node (Topic) -->
+                            <div class="relative w-32 h-32 border border-accent rounded-full flex items-center justify-center z-10 shadow-[0_0_50px_rgba(255,153,0,0.3)] bg-black/50 backdrop-blur-sm">
+                                <i data-lucide="radio" class="w-12 h-12 text-accent stroke-[1.5]"></i>
+                                <div class="absolute -bottom-8 text-white font-mono text-[10px] tracking-widest">SNS TOPIC</div>
+                            </div>
+
+                            <!-- Orbiting Nodes (Queues) -->
+                            <div class="absolute w-[60%] h-[60%] border border-white/5 rounded-full animate-spin-slow">
+                                <div class="w-10 h-10 bg-[#1a1a1a] border border-white/10 rounded-lg absolute -top-5 left-1/2 -translate-x-1/2 flex items-center justify-center shadow-lg">
+                                    <i data-lucide="layers" class="w-5 h-5 text-blue-400 stroke-[1.5]"></i>
+                                </div>
+                            </div>
+                            <div class="absolute w-[80%] h-[80%] border border-white/5 rounded-full animate-reverse-spin">
+                                <div class="w-10 h-10 bg-[#1a1a1a] border border-white/10 rounded-lg absolute -bottom-5 left-1/2 -translate-x-1/2 flex items-center justify-center shadow-lg">
+                                    <i data-lucide="zap" class="w-5 h-5 text-yellow-400 stroke-[1.5]"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Scrollable Text Steps -->
+                    <div class="order-1 lg:order-2 py-20 pb-0">
+                        <span class="text-accent font-mono text-xs tracking-widest block mb-10">/// MESSAGE LIFECYCLE</span>
+                        
+                        <div class="step-item mb-48 opacity-30 transition-opacity duration-500">
+                            <h3 class="text-4xl font-display font-semibold mb-4 text-white">01. Ingestion &amp; Topic Routing</h3>
+                            <p class="text-xl text-white leading-relaxed font-light">
+                                Producers publish messages to SNS topics. Subscription filters route payloads to specific queues based on attributes.
+                            </p>
+                        </div>
+
+                        <div class="step-item mb-48 opacity-30 transition-opacity duration-500">
+                            <h3 class="text-4xl font-display font-semibold mb-4 text-white">02. Queue Buffering</h3>
+                            <p class="text-xl text-white leading-relaxed font-light">
+                                SQS persists messages redundantly across availability zones. Visibility timeouts protect against processing failures.
+                            </p>
+                        </div>
+
+                        <div class="step-item opacity-30 transition-opacity duration-500">
+                            <h3 class="text-4xl font-display font-semibold mb-4 text-white">03. Consumption</h3>
+                            <p class="text-xl text-white leading-relaxed font-light">
+                                Workers poll queues for batches. Successful processing deletes the message; failures are routed to DLQs for analysis.
+                            </p>
+                        </div>
+                        
+                        <div class="h-40"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PRICING TABLE -->
+        <section id="pricing" class="skew-target py-32 px-6 bg-[#050505] relative z-20 border-t border-white/5">
+            <div class="max-w-7xl mx-auto">
+                <h2 class="font-display font-semibold text-4xl text-white text-center mb-16 scramble-text">Operational Tiers</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Standard -->
+                    <div class="border border-white/10 p-8 rounded-2xl hover:bg-white/5 transition-colors hover-trigger spotlight-card glass-panel">
+                        <div class="font-mono text-xs text-gray-500 mb-4 z-10 relative">/ DEVELOPER</div>
+                        <div class="text-3xl font-semibold text-white mb-6 z-10 relative">Free<span class="text-sm font-normal text-gray-500">/tier</span></div>
+                        <ul class="space-y-4 text-sm text-gray-300 mb-8 font-mono z-10 relative">
+                            <li class="flex gap-3"><i data-lucide="check" class="w-4 h-4"></i> 1M Requests/mo</li>
+                            <li class="flex gap-3"><i data-lucide="check" class="w-4 h-4"></i> Standard Queues</li>
+                        </ul>
+                        <button class="w-full py-3 border border-white/20 rounded font-semibold uppercase text-xs tracking-wider text-white hover:bg-white hover:text-black transition-all z-10 relative">Configure</button>
+                    </div>
+
+                    <!-- Production -->
+                    <div class="border border-accent bg-[#0a0a0a] p-8 rounded-2xl relative hover-trigger transform md:-translate-y-4 shadow-[0_0_30px_rgba(255,153,0,0.1)] spotlight-card">
+                        <div class="absolute top-0 right-0 bg-accent text-black text-[10px] font-bold px-3 py-1 uppercase rounded-bl-lg z-10">Recommended</div>
+                        <div class="font-mono text-xs text-accent mb-4 z-10 relative">/ BUSINESS</div>
+                        <div class="text-3xl font-semibold text-white mb-6 z-10 relative">$0.40<span class="text-sm font-normal text-gray-500">/1M reqs</span></div>
+                        <ul class="space-y-4 text-sm text-gray-300 mb-8 font-mono z-10 relative">
+                            <li class="flex gap-3"><i data-lucide="check" class="w-4 h-4 text-accent"></i> FIFO Queues</li>
+                            <li class="flex gap-3"><i data-lucide="check" class="w-4 h-4 text-accent"></i> 300ms Latency SLA</li>
+                            <li class="flex gap-3"><i data-lucide="check" class="w-4 h-4 text-accent"></i> Enhanced Monitoring</li>
+                        </ul>
+                        <button class="w-full py-3 bg-accent text-black rounded font-semibold uppercase text-xs tracking-wider hover:bg-white transition-all z-10 relative">Start Instance</button>
+                    </div>
+
+                    <!-- Enterprise -->
+                    <div class="border border-white/10 p-8 rounded-2xl hover:bg-white/5 transition-colors hover-trigger spotlight-card glass-panel">
+                        <div class="font-mono text-xs text-gray-500 mb-4 z-10 relative">/ ENTERPRISE</div>
+                        <div class="text-3xl font-semibold text-white mb-6 z-10 relative">Volume</div>
+                        <ul class="space-y-4 text-sm text-gray-300 mb-8 font-mono z-10 relative">
+                            <li class="flex gap-3"><i data-lucide="check" class="w-4 h-4"></i> Dedicated Throughput</li>
+                            <li class="flex gap-3"><i data-lucide="check" class="w-4 h-4"></i> Private Link</li>
+                        </ul>
+                        <button class="w-full py-3 border border-white/20 rounded font-semibold uppercase text-xs tracking-wider text-white hover:bg-white hover:text-black transition-all z-10 relative">Contact Sales</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="bg-[#020202] pt-32 pb-10 px-6 border-t border-white/10 relative overflow-hidden">
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none select-none pointer-events-none opacity-5">
+                <span class="text-[20vw] font-display font-black text-white whitespace-nowrap -ml-10">AWS MNGT</span>
+            </div>
+
+            <div class="max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-12">
+                <div>
+                    <h3 class="text-2xl font-display font-semibold text-white mb-6">Start Building</h3>
+                    <div class="flex gap-4">
+                        <input type="email" placeholder="root@admin.com" class="bg-white/5 border border-white/10 px-4 py-3 rounded text-sm w-64 focus:outline-none focus:border-accent text-white">
+                        <button class="bg-accent text-black px-6 py-3 rounded font-semibold text-sm hover:bg-white transition-colors">LOGIN</button>
+                    </div>
+                </div>
+                
+                <div class="flex gap-12 text-sm text-gray-500 font-mono tracking-wider uppercase">
+                    <div class="flex flex-col gap-3">
+                        <span class="text-white">Services</span>
+                        <a href="#" class="hover:text-accent transition-colors">SQS</a>
+                        <a href="#" class="hover:text-accent transition-colors">SNS</a>
+                        <a href="#" class="hover:text-accent transition-colors">EventBridge</a>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <span class="text-white">Resources</span>
+                        <a href="#" class="hover:text-accent transition-colors">Docs</a>
+                        <a href="#" class="hover:text-accent transition-colors">CLI</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="max-w-[1400px] mx-auto mt-20 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-[10px] text-gray-600 font-mono uppercase">
+                <span>© 2025 CLOUD INFRASTRUCTURE INC.</span>
+                <span class="mt-2 md:mt-0">SYSTEM STATUS: <span class="text-green-500">NORMAL</span></span>
+            </div>
+        </footer>
+
+    </main>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // --- 1. SETUP LENIS & SCROLL SKEW ---
+        const lenis = new Lenis({
+            lerp: 0.1,
+            smooth: true,
+            direction: 'vertical',
+        });
+        
+        let currentSkew = 0;
+        function raf(time) {
+            lenis.raf(time);
+            
+            // Interaction: Liquid Scroll Skew
+            const skewTarget = lenis.velocity * 0.1; 
+            currentSkew += (skewTarget - currentSkew) * 0.1;
+            const clampedSkew = Math.max(Math.min(currentSkew, 5), -5);
+            
+            document.querySelectorAll('.skew-target').forEach(el => {
+                el.style.transform = `skewY(${clampedSkew}deg)`;
+            });
+
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        // --- 2. SPOTLIGHT INTERACTION ---
+        document.addEventListener('mousemove', (e) => {
+            document.querySelectorAll('.spotlight-card').forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        // --- 3. TEXT SCRAMBLE INTERACTION ---
+        class ScrambleText {
+            constructor(el) {
+                this.el = el;
+                this.chars = '!<>-_\\/[]{}—=+*^?#________';
+                this.update = this.update.bind(this);
+            }
+            setText(newText) {
+                const oldText = this.el.innerText;
+                const length = Math.max(oldText.length, newText.length);
+                const promise = new Promise((resolve) => this.resolve = resolve);
+                this.queue = [];
+                for (let i = 0; i < length; i++) {
+                    const from = oldText[i] || '';
+                    const to = newText[i] || '';
+                    const start = Math.floor(Math.random() * 40);
+                    const end = start + Math.floor(Math.random() * 40);
+                    this.queue.push({ from, to, start, end });
+                }
+                cancelAnimationFrame(this.frameRequest);
+                this.frame = 0;
+                this.update();
+                return promise;
+            }
+            update() {
+                let output = '';
+                let complete = 0;
+                for (let i = 0, n = this.queue.length; i < n; i++) {
+                    let { from, to, start, end, char } = this.queue[i];
+                    if (this.frame >= end) {
+                        complete++;
+                        output += to;
+                    } else if (this.frame >= start) {
+                        if (!char || Math.random() < 0.28) {
+                            char = this.randomChar();
+                            this.queue[i].char = char;
+                        }
+                        output += `<span class="opacity-50">${char}</span>`;
+                    } else {
+                        output += from;
+                    }
+                }
+                this.el.innerHTML = output;
+                if (complete === this.queue.length) {
+                    this.resolve();
+                } else {
+                    this.frameRequest = requestAnimationFrame(this.update);
+                    this.frame++;
+                }
+            }
+            randomChar() {
+                return this.chars[Math.floor(Math.random() * this.chars.length)];
+            }
+        }
+
+        const scrambleElements = document.querySelectorAll('.scramble-text');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const el = entry.target;
+                    const fx = new ScrambleText(el);
+                    fx.setText(el.innerText);
+                    observer.unobserve(el);
+                }
+            });
+        }, { threshold: 0.5 });
+        
+        scrambleElements.forEach(el => observer.observe(el));
+
+        // --- 4. MAGNETIC BUTTONS ---
+        const buttons = document.querySelectorAll('.btn-magnetic');
+        buttons.forEach(btn => {
+            btn.addEventListener('mousemove', (e) => {
+                const rect = btn.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                gsap.to(btn, { x: x * 0.3, y: y * 0.3, duration: 0.2 });
+            });
+            btn.addEventListener('mouseleave', () => {
+                gsap.to(btn, { x: 0, y: 0, duration: 0.2 });
+            });
+        });
+
+        // --- 5. ANIMATIONS ---
+        gsap.registerPlugin(ScrollTrigger);
+
+        const counter = document.querySelector('.counter');
+        if(counter) {
+            gsap.from(counter, {
+                textContent: 0,
+                duration: 2,
+                ease: "power1.out",
+                snap: { textContent: 1 },
+                scrollTrigger: {
+                    trigger: counter,
+                    start: "top 85%",
+                    once: true
+                },
+                onUpdate: function() {
+                    this.targets()[0].innerHTML = Math.ceil(this.targets()[0].textContent) + '<span class="text-sm text-gray-500 ml-1">ms</span>';
+                }
+            });
+        }
+
+        const stepItems = document.querySelectorAll('.step-item');
+        stepItems.forEach((item) => {
+            gsap.to(item, {
+                scrollTrigger: {
+                    trigger: item,
+                    start: "top 80%", 
+                    end: "bottom center",
+                    onEnter: () => gsap.to(item, { opacity: 1, duration: 0.5 }),
+                    onLeave: () => gsap.to(item, { opacity: 0.3, duration: 0.5 }),
+                    onEnterBack: () => gsap.to(item, { opacity: 1, duration: 0.5 }),
+                    onLeaveBack: () => gsap.to(item, { opacity: 0.3, duration: 0.5 }),
+                }
+            });
+        });
+
+        gsap.utils.toArray('.glass-panel').forEach((panel, i) => {
+            gsap.from(panel, {
+                scrollTrigger: {
+                    trigger: panel,
+                    start: "top 90%"
+                },
+                y: 30,
+                opacity: 0,
+                duration: 0.8,
+                delay: i * 0.05,
+                ease: "power3.out"
+            });
+        });
+
+    </script>
+
+
+</body></html>

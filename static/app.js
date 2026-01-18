@@ -17,19 +17,29 @@ let currentInventory = {
 // UI Helpers
 function setStatus(msg, type = 'normal') {
     const el = document.getElementById('status-bar');
-    el.innerHTML = ''; // Clear previous content
+    const statusText = document.getElementById('status-text');
+    if (!el || !statusText) return;
 
-    // Create status indicator
-    const indicator = document.createElement('div');
-    indicator.className = `h-2 w-2 rounded-full mr-2 ${type === 'error' ? 'bg-destructive' : (type === 'success' ? 'bg-green-500' : 'bg-muted-foreground')}`;
+    // Update status indicator
+    const indicator = el.querySelector('.h-2') || el.querySelector('div');
+    if (indicator) {
+        indicator.className = `h-2 w-2 rounded-full ${type === 'error' ? 'bg-red-500' : (type === 'success' ? 'bg-green-500' : 'bg-gray-500')}`;
+    }
 
-    const text = document.createTextNode(msg);
+    // Update text
+    statusText.textContent = msg;
+    statusText.className = type === 'error' ? 'text-red-400' : (type === 'success' ? 'text-green-400' : 'text-gray-400');
+}
 
-    el.appendChild(indicator);
-    el.appendChild(text);
-
-    // Update text color
-    el.className = `px-6 py-2 text-xs border-b bg-muted/20 flex items-center ${type === 'error' ? 'text-destructive' : 'text-muted-foreground'}`;
+// Update region indicator
+function updateRegionIndicator(regions) {
+    const regionValue = document.getElementById('region-value');
+    if (regionValue && regions) {
+        const regionList = regions.split(',').map(r => r.trim()).filter(r => r);
+        if (regionList.length > 0) {
+            regionValue.textContent = regionList.length === 1 ? regionList[0] : `${regionList[0]} (+${regionList.length - 1})`;
+        }
+    }
 }
 
 // Helper to set the icon inside the realtime toggle button safely.
@@ -85,7 +95,10 @@ async function loadCredentials() {
         if (data.secret_key) document.getElementById('secret_key').value = data.secret_key;
         if (data.session_token) document.getElementById('session_token').value = data.session_token;
         if (data.profile) document.getElementById('profile').value = data.profile;
-        if (data.regions) document.getElementById('regions').value = data.regions;
+        if (data.regions) {
+            document.getElementById('regions').value = data.regions;
+            updateRegionIndicator(data.regions);
+        }
         if (data.remember) document.getElementById('remember').checked = true;
     } catch (e) {
         console.error("Failed to load credentials", e);
@@ -176,6 +189,7 @@ async function scanResources() {
             });
 
             updateTables();
+            updateRegionIndicator(data.regions);
             setStatus(`Scan complete. Found ${currentInventory.topics.length} topics and ${currentInventory.queues.length} queues.`, 'success');
         }
     } catch (e) {
@@ -189,112 +203,219 @@ async function scanResources() {
 
 function updateTables() {
     // Update Counts
-    document.getElementById('count-topics').textContent = currentInventory.topics.length;
-    document.getElementById('count-queues').textContent = currentInventory.queues.length;
-    document.getElementById('count-links').textContent = currentInventory.links.length;
+    const countTopics = document.getElementById('count-topics');
+    const countQueues = document.getElementById('count-queues');
+    const countLinks = document.getElementById('count-links');
     
-    // Calculate orphan queues count (queues without subscriptions)
-    const subscribedQueueArns = new Set(currentInventory.links.map(l => l.to_arn));
-    const orphanCount = currentInventory.queues.filter(q => !subscribedQueueArns.has(q.arn)).length;
-    document.getElementById('count-orphan').textContent = orphanCount;
+    if (countTopics) countTopics.textContent = currentInventory.topics.length;
+    if (countQueues) countQueues.textContent = currentInventory.queues.length;
+    if (countLinks) countLinks.textContent = currentInventory.links.length;
 
-    const rowClass = "border-b border-border transition-colors hover:bg-muted/40 data-[state=selected]:bg-muted";
-    const cellClass = "px-6 py-4 align-middle [&:has([role=checkbox])]:pr-0";
+    // Update Dashboard Grid with Statistics
+    updateDashboardGrid();
 
-    // Update Topics
-    const topicsBody = document.getElementById('list-topics');
-    topicsBody.innerHTML = currentInventory.topics.map(t => {
-        const s = currentInventory.stats[t.arn] || {};
-        const published = s.published_28d !== undefined ? s.published_28d : '-';
-        return `
-        <tr class="${rowClass}">
-            <td class="${cellClass}">${t.region}</td>
-            <td class="${cellClass} font-medium">${t.name}</td>
-            <td class="${cellClass} font-mono text-xs text-muted-foreground">${t.arn}</td>
-            <td class="${cellClass}">${published}</td>
-        </tr>
-    `}).join('');
+    // Update Queues List
+    updateQueuesList();
 
-    // Update Queues
-    const queuesBody = document.getElementById('list-queues');
-    queuesBody.innerHTML = currentInventory.queues.map(q => {
-        const s = currentInventory.stats[q.arn] || {};
-        const sent = s.numberofmessagessent_28d !== undefined ? s.numberofmessagessent_28d : '-';
-        const recv = s.numberofmessagesreceived_28d !== undefined ? s.numberofmessagesreceived_28d : '-';
-        return `
-        <tr class="${rowClass}">
-            <td class="${cellClass}">${q.region}</td>
-            <td class="${cellClass} font-medium">${q.name}</td>
-            <td class="${cellClass} font-mono text-xs text-muted-foreground truncate max-w-[200px]" title="${q.url}">${q.url}</td>
-            <td class="${cellClass}">${sent}</td>
-            <td class="${cellClass}">${recv}</td>
-        </tr>
-    `}).join('');
-
-    // Update Links (Grouped by Topic)
-    const linksBody = document.getElementById('list-links');
-
-    // Group links by Topic ARN (or Name + Region)
-    const groupedLinks = {};
-    currentInventory.links.forEach(l => {
-        // Extract topic name from from_arn (format: arn:aws:sns:region:account:TopicName)
-        const topicName = l.from_arn ? l.from_arn.split(':').pop() : 'Unknown';
-        // Extract queue name from to_arn (format: arn:aws:sqs:region:account:QueueName)
-        const queueName = l.to_arn ? l.to_arn.split(':').pop() : 'Unknown';
-
-        const key = `${l.region}|${topicName}`;
-        if (!groupedLinks[key]) {
-            groupedLinks[key] = {
-                region: l.region,
-                topic_name: topicName,
-                queues: []
-            };
-        }
-        groupedLinks[key].queues.push(queueName);
-    });
-
-    linksBody.innerHTML = Object.values(groupedLinks).map(group => `
-        <tr class="${rowClass}">
-            <td class="${cellClass}">${group.region}</td>
-            <td class="${cellClass} font-medium">${group.topic_name}</td>
-            <td class="${cellClass}">
-                <div class="flex flex-wrap gap-1">
-                    ${group.queues.map(q => `
-                        <span class="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium transition-colors bg-muted text-muted-foreground hover:bg-muted/80">
-                            ${q}
-                        </span>
-                    `).join('')}
-                </div>
-            </td>
-        </tr>
-    `).join('');
-
-    // Update Orphan Queues (queues without subscriptions)
-    const orphanBody = document.getElementById('list-orphan');
-    if (orphanBody) {
-        // Get all queue ARNs that are subscribed to topics
-        const subscribedQueueArns = new Set(currentInventory.links.map(l => l.to_arn));
-        
-        // Filter queues that are not in the subscribed set
-        const orphanQueues = currentInventory.queues.filter(q => !subscribedQueueArns.has(q.arn));
-        
-        orphanBody.innerHTML = orphanQueues.map(q => {
-            const s = currentInventory.stats[q.arn] || {};
-            const sent = s.numberofmessagessent_28d !== undefined ? s.numberofmessagessent_28d : '-';
-            const recv = s.numberofmessagesreceived_28d !== undefined ? s.numberofmessagesreceived_28d : '-';
-            return `
-            <tr class="${rowClass}">
-                <td class="${cellClass}">${q.region}</td>
-                <td class="${cellClass} font-medium">${q.name}</td>
-                <td class="${cellClass} font-mono text-xs text-muted-foreground truncate max-w-[200px]" title="${q.url}">${q.url}</td>
-                <td class="${cellClass}">${sent}</td>
-                <td class="${cellClass}">${recv}</td>
-            </tr>
-        `}).join('');
-    }
+    // Update Topics List
+    updateTopicsList();
 
     updateRealtimeQueueList();
     updateDiagramLists();
+}
+
+function updateDashboardGrid() {
+    const grid = document.getElementById('dashboard-grid');
+    if (!grid) return;
+
+    if (currentInventory.queues.length === 0 && currentInventory.topics.length === 0) {
+        grid.innerHTML = `
+            <div class="glass-panel spotlight-card rounded-xl p-6 text-center col-span-full">
+                <div class="text-gray-400 text-sm mb-2">Scan resources to view statistics</div>
+            </div>
+        `;
+        return;
+    }
+
+    // Calculate statistics
+    const subscribedQueueArns = new Set(currentInventory.links.map(l => l.to_arn));
+    const orphanCount = currentInventory.queues.filter(q => !subscribedQueueArns.has(q.arn)).length;
+    
+    // Get total stats
+    let totalSent = 0, totalReceived = 0, totalPublished = 0;
+    currentInventory.queues.forEach(q => {
+        const s = currentInventory.stats[q.arn] || {};
+        totalSent += s.numberofmessagessent_28d || 0;
+        totalReceived += s.numberofmessagesreceived_28d || 0;
+    });
+    currentInventory.topics.forEach(t => {
+        const s = currentInventory.stats[t.arn] || {};
+        totalPublished += s.published_28d || 0;
+    });
+
+    grid.innerHTML = `
+        <div class="glass-panel spotlight-card rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-accent/20 rounded-lg flex items-center justify-center">
+                    <i data-lucide="layers" class="w-5 h-5 text-accent"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-display font-semibold text-white">${currentInventory.queues.length}</div>
+                    <div class="text-xs text-gray-400 font-mono">Queues</div>
+                </div>
+            </div>
+            <div class="text-xs text-gray-500">Orphan: ${orphanCount}</div>
+        </div>
+        <div class="glass-panel spotlight-card rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                    <i data-lucide="radio" class="w-5 h-5 text-blue-400"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-display font-semibold text-white">${currentInventory.topics.length}</div>
+                    <div class="text-xs text-gray-400 font-mono">Topics</div>
+                </div>
+            </div>
+            <div class="text-xs text-gray-500">Published: ${totalPublished.toLocaleString()}</div>
+        </div>
+        <div class="glass-panel spotlight-card rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+                    <i data-lucide="link" class="w-5 h-5 text-green-400"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-display font-semibold text-white">${currentInventory.links.length}</div>
+                    <div class="text-xs text-gray-400 font-mono">Subscriptions</div>
+                </div>
+            </div>
+        </div>
+        <div class="glass-panel spotlight-card rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                    <i data-lucide="activity" class="w-5 h-5 text-purple-400"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-display font-semibold text-white">${totalSent.toLocaleString()}</div>
+                    <div class="text-xs text-gray-400 font-mono">Sent (28d)</div>
+                </div>
+            </div>
+            <div class="text-xs text-gray-500">Received: ${totalReceived.toLocaleString()}</div>
+        </div>
+    `;
+    
+    lucide.createIcons();
+}
+
+function updateQueuesList() {
+    const list = document.getElementById('queues-list');
+    if (!list) return;
+
+    if (currentInventory.queues.length === 0) {
+        list.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-8">No queues found. Scan resources first.</div>';
+        return;
+    }
+
+    const subscribedQueueArns = new Set(currentInventory.links.map(l => l.to_arn));
+
+    list.innerHTML = currentInventory.queues.map(q => {
+        const s = currentInventory.stats[q.arn] || {};
+        const sent = s.numberofmessagessent_28d !== undefined ? s.numberofmessagessent_28d.toLocaleString() : '-';
+        const recv = s.numberofmessagesreceived_28d !== undefined ? s.numberofmessagesreceived_28d.toLocaleString() : '-';
+        const isOrphan = !subscribedQueueArns.has(q.arn);
+        
+        return `
+            <div class="glass-panel spotlight-card rounded-xl p-6">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-accent/20 rounded-lg flex items-center justify-center">
+                            <i data-lucide="layers" class="w-4 h-4 text-accent"></i>
+                        </div>
+                        <div>
+                            <div class="font-display font-semibold text-white">${q.name}</div>
+                            <div class="text-xs text-gray-400 font-mono">${q.region}</div>
+                        </div>
+                    </div>
+                    ${isOrphan ? '<span class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 border border-red-500/30">Orphan</span>' : ''}
+                </div>
+                <div class="space-y-2 text-xs font-mono">
+                    <div class="flex justify-between text-gray-400">
+                        <span>Sent (28d):</span>
+                        <span class="text-white">${sent}</span>
+                    </div>
+                    <div class="flex justify-between text-gray-400">
+                        <span>Received (28d):</span>
+                        <span class="text-white">${recv}</span>
+                    </div>
+                    <div class="pt-2 border-t border-white/10">
+                        <div class="text-gray-500 truncate" title="${q.url}">${q.url}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    lucide.createIcons();
+}
+
+function updateTopicsList() {
+    const list = document.getElementById('topics-list');
+    if (!list) return;
+
+    if (currentInventory.topics.length === 0) {
+        list.innerHTML = '<div class="col-span-full text-center text-gray-400 text-sm py-8">No topics found. Scan resources first.</div>';
+        return;
+    }
+
+    // Group links by topic
+    const topicToQueues = {};
+    currentInventory.links.forEach(l => {
+        if (!topicToQueues[l.from_arn]) {
+            topicToQueues[l.from_arn] = [];
+        }
+        const queueName = l.to_arn ? l.to_arn.split(':').pop() : 'Unknown';
+        topicToQueues[l.from_arn].push(queueName);
+    });
+
+    list.innerHTML = currentInventory.topics.map(t => {
+        const s = currentInventory.stats[t.arn] || {};
+        const published = s.published_28d !== undefined ? s.published_28d.toLocaleString() : '-';
+        const queues = topicToQueues[t.arn] || [];
+        
+        return `
+            <div class="glass-panel spotlight-card rounded-xl p-6">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                            <i data-lucide="radio" class="w-4 h-4 text-blue-400"></i>
+                        </div>
+                        <div>
+                            <div class="font-display font-semibold text-white">${t.name}</div>
+                            <div class="text-xs text-gray-400 font-mono">${t.region}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-2 text-xs font-mono">
+                    <div class="flex justify-between text-gray-400">
+                        <span>Published (28d):</span>
+                        <span class="text-white">${published}</span>
+                    </div>
+                    ${queues.length > 0 ? `
+                        <div class="pt-2 border-t border-white/10">
+                            <div class="text-gray-400 mb-1">Subscribed Queues:</div>
+                            <div class="flex flex-wrap gap-1">
+                                ${queues.slice(0, 3).map(q => `
+                                    <span class="px-2 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10 text-[10px]">${q}</span>
+                                `).join('')}
+                                ${queues.length > 3 ? `<span class="px-2 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10 text-[10px]">+${queues.length - 3}</span>` : ''}
+                            </div>
+                        </div>
+                    ` : '<div class="pt-2 border-t border-white/10 text-gray-500 text-[10px]">No subscriptions</div>'}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    lucide.createIcons();
 }
 
 function updateDiagramLists() {
@@ -309,7 +430,7 @@ function updateDiagramLists() {
     const diagramTopicContainer = document.getElementById('diagram-topic-list');
     if (diagramTopicContainer) {
         if (currentInventory.topics.length === 0) {
-            diagramTopicContainer.innerHTML = '<div class="text-xs text-muted-foreground">Scan resources first</div>';
+            diagramTopicContainer.innerHTML = '<div class="text-xs text-gray-500">Scan resources first</div>';
         } else {
             const topics = currentInventory.topics.map(t => ({ arn: t.arn, name: t.name }));
             window.mountDiagramCheckboxes('diagram-topic-list', 'topics', topics, updateDiagramFromSelection);
@@ -320,7 +441,7 @@ function updateDiagramLists() {
     const diagramQueueContainer = document.getElementById('diagram-queue-list');
     if (diagramQueueContainer) {
         if (currentInventory.queues.length === 0) {
-            diagramQueueContainer.innerHTML = '<div class="text-xs text-muted-foreground">Scan resources first</div>';
+            diagramQueueContainer.innerHTML = '<div class="text-xs text-gray-500">Scan resources first</div>';
         } else {
             const queues = currentInventory.queues.map(q => ({ arn: q.arn, name: q.name }));
             window.mountDiagramCheckboxes('diagram-queue-list', 'queues', queues, updateDiagramFromSelection);
@@ -485,21 +606,21 @@ function updateRealtimeQueueList() {
     if (!container) return;
 
     if (currentInventory.queues.length === 0) {
-        container.innerHTML = '<div class="text-xs text-muted-foreground">Scan resources first to see available queues</div>';
+        container.innerHTML = '<div class="text-xs text-gray-500">Scan resources first to see available queues</div>';
         return;
     }
 
     container.innerHTML = '';
     currentInventory.queues.forEach(queue => {
         const label = document.createElement('label');
-        label.className = 'flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer transition-colors';
+        label.className = 'flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 cursor-pointer transition-colors text-sm text-gray-300';
         label.title = queue.url || queue.name;
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.value = queue.arn;
         checkbox.dataset.name = queue.name;
-        checkbox.className = 'h-4 w-4 rounded border-primary';
+        checkbox.className = 'h-4 w-4 rounded border-white/20 bg-white/5 text-accent focus:ring-accent focus:ring-offset-0';
         checkbox.checked = false; // not selected by default
 
         const span = document.createElement('span');
@@ -776,15 +897,7 @@ function toggleRealtime() {
     statusText.textContent = 'Start Monitoring';
     setToggleIcon(button, 'play');
         // Switch button color back to primary (orange)
-        try {
-            button.classList.remove('bg-destructive', 'text-destructive-foreground');
-            button.classList.add('bg-primary', 'text-primary-foreground');
-        } catch (e) {
-            // ignore
-        }
-        // also set explicit inline color to ensure visual change
-        button.style.backgroundColor = 'hsl(25, 90%, 55%)'; // orange
-        button.style.color = '#ffffff';
+        button.className = 'flex-1 bg-accent text-black px-4 py-2 text-xs font-semibold uppercase tracking-wider hover:bg-white transition-all';
         lucide.createIcons();
     } else {
         // Start monitoring
@@ -792,15 +905,7 @@ function toggleRealtime() {
     statusText.textContent = 'Stop Monitoring';
     setToggleIcon(button, 'pause');
         // Switch button color to destructive (red)
-        try {
-            button.classList.remove('bg-primary', 'text-primary-foreground');
-            button.classList.add('bg-destructive', 'text-destructive-foreground');
-        } catch (e) {
-            // ignore
-        }
-        // explicit inline color to ensure visible change
-        button.style.backgroundColor = 'rgb(239 68 68)'; // red
-        button.style.color = '#ffffff';
+        button.className = 'flex-1 bg-red-500 text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider hover:bg-red-600 transition-all';
         lucide.createIcons();
 
         // Reset counters
@@ -829,7 +934,7 @@ async function fetchRealtimeMessages() {
     // Check if we have scanned resources
     if (currentInventory.topics.length === 0 && currentInventory.queues.length === 0) {
         log.innerHTML = `
-            <div class="text-center py-8" style="color: hsl(var(--muted-foreground));">
+            <div class="text-center py-8 text-gray-400">
                 Please scan resources first before monitoring
             </div>
         `;
@@ -841,9 +946,9 @@ async function fetchRealtimeMessages() {
 
     if (selectedQueueArns.length === 0) {
         log.innerHTML = `
-            <div class="text-center py-8" style="color: hsl(var(--muted-foreground));">
+            <div class="text-center py-8 text-gray-400">
                 <div class="text-2xl mb-2">🔍</div>
-                <div class="font-semibold mb-2">Aucune ressource sélectionnée</div>
+                <div class="font-semibold mb-2 text-white">Aucune ressource sélectionnée</div>
                 <div class="text-xs">Sélectionnez au moins une queue pour commencer la surveillance</div>
             </div>
         `;
@@ -892,46 +997,40 @@ async function fetchRealtimeMessages() {
         if (messages.length > 0) {
             messages.forEach(msg => {
                 const timestamp = new Date(msg.timestamp).toLocaleTimeString();
-                const msgId = msg.message_id ? `<span class="text-xs ml-2" style="color: hsl(var(--muted-foreground));">ID: ${msg.message_id.substring(0, 8)}...</span>` : '';
-                const bodyHtml = msg.body ? `<div class="mt-1 text-sm font-mono p-2 rounded" style="color: hsl(var(--muted-foreground)); background-color: hsl(var(--muted) / 0.3);">${escapeHtml(msg.body)}</div>` : '';
+                const msgId = msg.message_id ? `<span class="text-xs ml-2 text-gray-400">ID: ${msg.message_id.substring(0, 8)}...</span>` : '';
+                const bodyHtml = msg.body ? `<div class="mt-2 text-xs font-mono p-2 rounded bg-black/30 text-gray-300 border border-white/10">${escapeHtml(msg.body)}</div>` : '';
                 
                 // Color code based on type
                 let typeColorClass = '';
-                let typeColorStyle = '';
                 let typeIcon = '📨';
                 if (msg.type === 'message') {
-                    typeColorClass = 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300';
-                    typeColorStyle = 'background-color: rgba(34, 197, 94, 0.1); color: rgb(21, 128, 61);';
+                    typeColorClass = 'bg-green-500/20 text-green-400 border-green-500/30';
                     typeIcon = '✉️';
                 } else if (msg.type === 'error') {
-                    typeColorClass = 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300';
-                    typeColorStyle = 'background-color: rgba(239, 68, 68, 0.1); color: rgb(185, 28, 28);';
+                    typeColorClass = 'bg-red-500/20 text-red-400 border-red-500/30';
                     typeIcon = '⚠️';
                 } else if (msg.type === 'sent') {
-                    typeColorClass = 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300';
-                    typeColorStyle = 'background-color: rgba(234, 179, 8, 0.1); color: rgb(161, 98, 7);';
+                    typeColorClass = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
                     typeIcon = '📤';
                 } else if (msg.type === 'received') {
-                    typeColorClass = 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300';
-                    typeColorStyle = 'background-color: rgba(168, 85, 247, 0.1); color: rgb(126, 34, 206);';
+                    typeColorClass = 'bg-purple-500/20 text-purple-400 border-purple-500/30';
                     typeIcon = '📥';
                 } else {
-                    typeColorClass = 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300';
-                    typeColorStyle = 'background-color: rgba(59, 130, 246, 0.1); color: rgb(29, 78, 216);';
+                    typeColorClass = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
                 }
                 
                 const messageHtml = `
-                    <div class="flex flex-col gap-1 p-3 rounded border mb-2" style="background-color: hsl(var(--muted) / 0.5); border-color: hsl(var(--border) / 0.5);">
+                    <div class="flex flex-col gap-1 p-3 rounded border mb-2 bg-white/5 border-white/10">
                         <div class="flex items-start gap-2">
                             <span class="text-lg">${typeIcon}</span>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="font-medium" style="color: hsl(var(--primary));">${msg.resource}</span>
-                                    <span class="text-xs px-2 py-0.5 rounded font-semibold ${typeColorClass}" style="${typeColorStyle}">${msg.type.toUpperCase()}</span>
-                                    <span class="text-xs" style="color: hsl(var(--muted-foreground));">${msg.region}</span>
+                                    <span class="font-medium text-white">${msg.resource}</span>
+                                    <span class="text-xs px-2 py-0.5 rounded font-semibold border ${typeColorClass}">${msg.type.toUpperCase()}</span>
+                                    <span class="text-xs text-gray-400">${msg.region}</span>
                                     ${msgId}
                                 </div>
-                                <div class="text-xs mt-0.5" style="color: hsl(var(--muted-foreground));">${timestamp}</div>
+                                <div class="text-xs mt-0.5 text-gray-400">${timestamp}</div>
                             </div>
                         </div>
                         ${bodyHtml}
@@ -957,9 +1056,9 @@ async function fetchRealtimeMessages() {
             if (log.children.length === 0) {
                 // First poll with no messages
                 log.innerHTML = `
-                    <div class="text-center py-8" style="color: hsl(var(--muted-foreground));">
+                    <div class="text-center py-8 text-gray-400">
                         <div class="text-2xl mb-2">👀</div>
-                        <div>Surveillance active - en attente de messages...</div>
+                        <div class="text-white">Surveillance active - en attente de messages...</div>
                         <div class="text-xs mt-2">Polling #${pollCount} - ${lastPollTime.toLocaleTimeString()}</div>
                         <div class="text-xs mt-1">Les messages apparaîtront ici dès leur réception</div>
                     </div>
@@ -974,7 +1073,7 @@ async function fetchRealtimeMessages() {
                 // Only show status every 5 polls to avoid spam
                 if (pollCount % 5 === 0) {
                     const statusHtml = `
-                        <div class="poll-status-indicator text-xs text-center py-2 mt-2" style="color: hsl(var(--muted-foreground)); border-top: 1px solid hsl(var(--border) / 0.5);">
+                        <div class="poll-status-indicator text-xs text-center py-2 mt-2 text-gray-400 border-t border-white/10">
                             ⏱️ Monitoring actif - Dernier poll: ${lastPollTime.toLocaleTimeString()} (${pollCount} polls)
                         </div>
                     `;
@@ -986,13 +1085,13 @@ async function fetchRealtimeMessages() {
         console.error('Failed to fetch realtime messages:', e);
         // Show error in UI for easier debugging
         try {
-            log.insertAdjacentHTML('afterbegin', `<div class="text-sm p-2" style="color: hsl(var(--destructive));">Realtime error: ${escapeHtml(String(e))}</div>`);
+            log.insertAdjacentHTML('afterbegin', `<div class="text-sm p-2 text-red-400 bg-red-500/10 border border-red-500/30 rounded">Realtime error: ${escapeHtml(String(e))}</div>`);
         } catch (ee) {}
     }
     } catch (syncErr) {
         console.error('Synchronous error in fetchRealtimeMessages:', syncErr);
         try {
-            log.insertAdjacentHTML('afterbegin', `<div class="text-sm p-2" style="color: hsl(var(--destructive));">Realtime sync error: ${escapeHtml(String(syncErr))}</div>`);
+            log.insertAdjacentHTML('afterbegin', `<div class="text-sm p-2 text-red-400 bg-red-500/10 border border-red-500/30 rounded">Realtime sync error: ${escapeHtml(String(syncErr))}</div>`);
         } catch (ee) {}
     }
 }
@@ -1001,7 +1100,7 @@ function clearRealtimeLog() {
     const log = document.getElementById('realtime-log');
     if (!log) return;
     log.innerHTML = `
-        <div class="text-center py-8" style="color: hsl(var(--muted-foreground));">
+        <div class="text-center py-8 text-gray-400">
             Click "Start Monitoring" to begin tracking real-time message exchanges
         </div>
     `;

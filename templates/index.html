@@ -1,491 +1,671 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="en" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AWS SNS/SQS Manager</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS from React build -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='react/assets/main.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Mermaid for diagrams -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS // MANAGEMENT | Enterprise Cloud Infrastructure</title>
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- GSAP & Lenis -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/@studio-freight/lenis@1.0.29/dist/lenis.min.js"></script>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<!-- Mermaid for diagrams -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>
+tailwind.config = {
+    theme: {
+        extend: {
+            colors: {
+                accent: '#FF9900', /* AWS Orange style */
+                surface: '#0F0F0F',
+                subtle: '#2a2a2a'
+            },
+            fontFamily: {
+                sans: ['Inter', 'sans-serif'],
+                display: ['Space Grotesk', 'sans-serif'],
+                mono: ['JetBrains Mono', 'monospace'],
+            },
+            animation: {
+                'spin-slow': 'spin 15s linear infinite',
+                'reverse-spin': 'spin 20s linear infinite reverse',
+                'marquee': 'marquee 30s linear infinite',
+                'scan': 'scan 4s linear infinite',
+                'blink': 'blink 2s ease-in-out infinite',
+                'dash': 'dash 20s linear infinite',
+                'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+                marquee: {
+                    '0%': { transform: 'translateX(0)' },
+                    '100%': { transform: 'translateX(-33.333%)' },
+                },
+                scan: {
+                    '0%': { top: '-20%' },
+                    '100%': { top: '120%' },
+                },
+                blink: {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.3 },
+                },
+                dash: {
+                    to: { 'stroke-dashoffset': '1000' }
+                }
+            }
+        }
+    }
+}
+</script>
+<style>
+/* --- CORE SETTINGS --- */
+html {
+    background-color: #050505;
+}
+body {
+    margin: 0; padding: 0;
+    background-color: transparent;
+    color: #e0e0e0;
+    overflow-x: hidden;
+    cursor: auto;
+}
+/* --- UTILS --- */
+.glass-panel {
+    background: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+    overflow: hidden;
+}
+/* Spotlight Effect */
+.spotlight-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: inherit;
+    background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.04), transparent 40%);
+    z-index: 2; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+}
+.spotlight-card:hover::before { opacity: 1; }
+.spotlight-card::after {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: inherit; padding: 1px;
+    background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 153, 0, 0.3), transparent 40%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    z-index: 3; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+}
+.spotlight-card:hover::after { opacity: 1; }
+
+.marquee-mask {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+.scan-line {
+    position: absolute; left: 0; width: 100%; height: 50px;
+    background: linear-gradient(to bottom, transparent, rgba(255, 153, 0, 0.3), transparent);
+    opacity: 0.5; animation: scan 3s linear infinite; z-index: 10; pointer-events: none;
+}
+.noise-overlay {
+    position: fixed; inset: 0; z-index: 9000; pointer-events: none; opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+.btn-magnetic { display: inline-block; }
+.dot-grid {
+    background-image: radial-gradient(rgba(255,255,255,0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+.skew-target { will-change: transform; }
+
+/* Custom UI Elements */
+.custom-checkbox input:checked + div {
+    background-color: #FF9900;
+    border-color: #FF9900;
+}
+.custom-checkbox input:checked + div svg {
+    display: block;
+}
+.custom-toggle input:checked + div {
+    background-color: #FF9900;
+}
+.custom-toggle input:checked + div span {
+    transform: translateX(100%);
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-content {
+    background: rgba(10, 10, 10, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 1rem;
+    padding: 2rem;
+    max-width: 500px; width: 90%;
+    max-height: 90vh; overflow-y: auto;
+}
+
+/* Status indicator */
+.status-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    z-index: 40; background: rgba(5, 5, 5, 0.9);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 0.5rem 1.5rem;
+    font-size: 0.75rem;
+    display: flex; align-items: center; gap: 0.5rem;
+}
+</style>
 </head>
+<body class="antialiased selection:bg-accent selection:text-black">
 
-<body class="h-screen overflow-hidden flex antialiased selection:bg-primary selection:text-primary-foreground">
+    <!-- GLOBAL BACKDROP -->
+    <div class="fixed inset-0 bg-[#050505] -z-50"></div>
 
-    <!-- Sidebar -->
-    <aside class="w-80 border-r border-border bg-background flex flex-col h-full">
-        <div class="p-8 border-b border-border">
-            <div class="flex items-center gap-3 mb-1">
-                <i data-lucide="cloud" class="h-5 w-5 text-foreground"></i>
-                <span class="font-semibold text-base tracking-tight text-foreground">AWS Manager</span>
+    <!-- 3D BACKGROUND -->
+    <div class="aura-background-component fixed top-0 w-full h-screen -z-10 opacity-60" data-alpha-mask="80" style="mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, transparent, black 0%, black 80%, transparent)">
+        <div class="absolute inset-0 bg-gradient-to-tr from-[#050505] via-[#0a0a0a] to-[#151515]"></div>
+        <div class="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-accent/10 rounded-full blur-[120px] mix-blend-screen"></div>
+        <div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-[100px] mix-blend-screen"></div>
+    </div>
+
+    <!-- NOISE LAYER -->
+    <div class="noise-overlay"></div>
+    
+    <!-- NAVIGATION -->
+    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <a href="#" class="group hover-trigger">
+                <span class="font-display font-semibold text-xl tracking-tighter text-white group-hover:text-accent transition-colors">AWS<span class="text-accent group-hover:text-white transition-colors">//</span>MNGT</span>
+            </a>
+            <div class="hidden md:flex gap-8 text-xs font-mono tracking-widest text-gray-400">
+                <a href="#dashboard" class="hover:text-white transition-colors hover-trigger">[01] QUEUES</a>
+                <a href="#topics" class="hover:text-white transition-colors hover-trigger">[02] TOPICS</a>
+                <a href="#pipeline" class="hover:text-white transition-colors hover-trigger">[03] PIPELINE</a>
+                <a href="#realtime" class="hover:text-white transition-colors hover-trigger">[04] MONITOR</a>
             </div>
-            <span class="text-xs text-muted-foreground ml-8">v1.0.0</span>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-8 space-y-8">
-            <div class="space-y-4">
-                <h3 class="text-xs font-medium text-muted-foreground tracking-normal">Credentials</h3>
-
-                <div class="space-y-3">
-                    <div class="space-y-1.5">
-                        <label
-                            class="text-xs font-medium text-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Profile</label>
-                        <input type="text" id="profile" placeholder="default"
-                            class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50">
-                    </div>
-
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-medium text-foreground leading-none">Access Key ID</label>
-                        <input type="text" id="access_key" placeholder="AWS_ACCESS_KEY_ID"
-                            class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
-                    </div>
-
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-medium text-foreground leading-none">Secret Access Key</label>
-                        <input type="password" id="secret_key" placeholder="AWS_SECRET_ACCESS_KEY"
-                            class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
-                    </div>
-
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-medium text-foreground leading-none">Session Token</label>
-                        <input type="password" id="session_token" placeholder="Optional"
-                            class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
-                    </div>
-
-                    <div class="flex items-center space-x-2 pt-1">
-                        <input type="checkbox" id="remember"
-                            class="h-4 w-4 rounded border-border text-primary focus:ring-0 focus:ring-offset-0">
-                        <label for="remember"
-                            class="text-sm font-medium text-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Remember
-                            me</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-4">
-                <h3 class="text-xs font-medium text-muted-foreground tracking-normal">Configuration</h3>
-                <div class="space-y-1.5">
-                    <label class="text-xs font-medium text-foreground leading-none">Region</label>
-                    <select id="regions"
-                        class="flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
-                        <option value="us-east-1">us-east-1 (N. Virginia)</option>
-                        <option value="us-east-2">us-east-2 (Ohio)</option>
-                        <option value="us-west-1">us-west-1 (N. California)</option>
-                        <option value="us-west-2">us-west-2 (Oregon)</option>
-                        <option value="af-south-1">af-south-1 (Cape Town)</option>
-                        <option value="ap-east-1">ap-east-1 (Hong Kong)</option>
-                        <option value="ap-south-1">ap-south-1 (Mumbai)</option>
-                        <option value="ap-northeast-3">ap-northeast-3 (Osaka)</option>
-                        <option value="ap-northeast-2">ap-northeast-2 (Seoul)</option>
-                        <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
-                        <option value="ap-southeast-2">ap-southeast-2 (Sydney)</option>
-                        <option value="ap-northeast-1">ap-northeast-1 (Tokyo)</option>
-                        <option value="ca-central-1">ca-central-1 (Canada Central)</option>
-                        <option value="eu-central-1" selected>eu-central-1 (Frankfurt)</option>
-                        <option value="eu-west-1">eu-west-1 (Ireland)</option>
-                        <option value="eu-west-2">eu-west-2 (London)</option>
-                        <option value="eu-south-1">eu-south-1 (Milan)</option>
-                        <option value="eu-west-3">eu-west-3 (Paris)</option>
-                        <option value="eu-north-1">eu-north-1 (Stockholm)</option>
-                        <option value="me-south-1">me-south-1 (Bahrain)</option>
-                        <option value="sa-east-1">sa-east-1 (São Paulo)</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-8 border-t border-border space-y-3 bg-background">
-            <button id="scan-btn"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 w-full">
-                <i data-lucide="search" class="mr-2 h-4 w-4"></i> Scan Resources
-            </button>
-            <div class="grid grid-cols-2 gap-2">
-                <button id="test-conn-btn"
-                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent hover:bg-muted h-9 px-4 py-2">
-                    Test Conn
-                </button>
-                <button id="stats-btn"
-                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent hover:bg-muted h-9 px-4 py-2">
-                    Fetch Stats
-                </button>
-            </div>
-        </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col min-w-0 bg-background">
-        <!-- Header -->
-        <header
-            class="h-16 border-b border-border px-8 flex items-center justify-between bg-background">
-            <div class="flex items-center gap-6">
-                <h1 class="text-base font-semibold text-foreground">Dashboard</h1>
-                <div class="flex items-center gap-2 text-sm">
-                    <span
-                        class="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
-                        <i data-lucide="message-square" class="h-3.5 w-3.5"></i>
-                        <span id="count-topics">0</span> Topics
-                    </span>
-                    <span
-                        class="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
-                        <i data-lucide="layers" class="h-3.5 w-3.5"></i>
-                        <span id="count-queues">0</span> Queues
-                    </span>
-                    <span
-                        class="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
-                        <i data-lucide="link" class="h-3.5 w-3.5"></i>
-                        <span id="count-links">0</span> Subs
-                    </span>
-                    <span
-                        class="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
-                        <i data-lucide="unlink" class="h-3.5 w-3.5"></i>
-                        <span id="count-orphan">0</span> Non sub
-                    </span>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <button onclick="toggleTheme()"
-                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent hover:bg-muted h-9 w-9">
-                    <i data-lucide="sun"
-                        class="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"></i>
-                    <i data-lucide="moon"
-                        class="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"></i>
-                    <span class="sr-only">Toggle theme</span>
-                </button>
-
+            <div class="flex items-center gap-4">
+                <span id="region-indicator" class="hidden lg:flex text-[10px] font-mono text-green-500 items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    REGION: <span id="region-value">-</span>
+                </span>
                 <div class="dropdown relative group">
-                    <button
-                        class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 border border-border bg-transparent hover:bg-muted h-9 px-4 py-2">
-                        <i data-lucide="download" class="mr-2 h-4 w-4"></i> Export
+                    <button class="border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-white hover:text-black transition-all hover-trigger btn-magnetic">
+                        Export
                     </button>
-                    <!-- Simple dropdown implementation -->
-                    <div
-                        class="absolute right-0 mt-2 w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-sm outline-none hidden group-hover:block z-50">
-                        <button onclick="exportData('json')"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
-                            JSON
-                        </button>
-                        <button onclick="exportData('sql')"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
-                            SQL
-                        </button>
-                        <button onclick="exportData('drawio')"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
-                            Draw.io
-                        </button>
-                        <button onclick="exportData('mermaid')"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
-                            Mermaid
-                        </button>
-                        <button onclick="exportData('canvas')"
-                            class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted cursor-pointer">
-                            JSON Canvas
-                        </button>
+                    <div class="absolute right-0 mt-2 w-48 rounded-md border border-white/10 bg-[#0a0a0a] p-1 shadow-lg hidden group-hover:block z-50">
+                        <button onclick="exportData('json')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 rounded transition-colors">JSON</button>
+                        <button onclick="exportData('sql')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 rounded transition-colors">SQL</button>
+                        <button onclick="exportData('drawio')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 rounded transition-colors">Draw.io</button>
+                        <button onclick="exportData('mermaid')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 rounded transition-colors">Mermaid</button>
+                        <button onclick="exportData('canvas')" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 rounded transition-colors">JSON Canvas</button>
                     </div>
                 </div>
-            </div>
-        </header>
-
-        <!-- Status Bar -->
-        <div id="status-bar"
-            class="px-8 py-2 text-xs text-muted-foreground border-b border-border bg-muted/30 flex items-center gap-2">
-            <div class="h-2 w-2 rounded-full bg-green-500"></div>
-            Ready
-        </div>
-
-        <!-- Tabs Navigation -->
-        <div class="px-8 pt-8 pb-0">
-            <div class="inline-flex h-10 items-center justify-center gap-1 border-b border-border">
-                <button onclick="switchTab('topics')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
-                    data-tab="topics">
-                    Topics
-                </button>
-                <button onclick="switchTab('queues')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
-                    data-tab="queues">
-                    Queues
-                </button>
-                <button onclick="switchTab('links')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
-                    data-tab="links">
-                    Subscriptions
-                </button>
-                <button onclick="switchTab('orphan')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
-                    data-tab="orphan">
-                    Orphan
-                </button>
-                <button onclick="switchTab('diagram')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
-                    data-tab="diagram">
-                    Diagram
-                </button>
-                <button onclick="switchTab('realtime')"
-                    class="tab-btn inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-50 relative text-muted-foreground border-b-2 border-transparent hover:text-foreground"
-                    data-tab="realtime">
-                    Real-time
+                <button id="console-access-btn" class="border border-white/20 px-6 py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-white hover:text-black transition-all hover-trigger btn-magnetic">
+                    Console Access
                 </button>
             </div>
         </div>
+    </nav>
 
-        <!-- Content Area -->
-        <div class="flex-1 overflow-hidden p-8">
+    <!-- STATUS BAR -->
+    <div id="status-bar" class="status-bar">
+        <div class="h-2 w-2 rounded-full bg-green-500"></div>
+        <span id="status-text">Ready</span>
+    </div>
 
-            <!-- Topics Tab -->
-            <div id="tab-topics" class="tab-content h-full flex flex-col">
-                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
-                    <div class="overflow-auto flex-1">
-                        <table class="w-full caption-bottom text-sm">
-                            <thead class="[&_tr]:border-b border-border">
-                                <tr class="border-b border-border bg-muted/30">
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
-                                        Region</th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Name
-                                    </th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">ARN
-                                    </th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
-                                        Published (28d)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="list-topics" class="[&_tr:last-child]:border-0">
-                                <!-- Items injected here -->
-                            </tbody>
-                        </table>
-                    </div>
+    <!-- CREDENTIALS MODAL -->
+    <div id="credentials-modal" class="modal-overlay">
+        <div class="modal-content spotlight-card">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-display font-semibold text-xl text-white">AWS Credentials</h3>
+                <button onclick="closeCredentialsModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-mono text-gray-400 uppercase tracking-wider block mb-2">Profile</label>
+                    <input type="text" id="profile" placeholder="default" class="w-full bg-white/5 border border-white/10 px-4 py-2 rounded text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-accent transition-colors">
+                </div>
+                <div>
+                    <label class="text-xs font-mono text-gray-400 uppercase tracking-wider block mb-2">Access Key ID</label>
+                    <input type="text" id="access_key" placeholder="AWS_ACCESS_KEY_ID" class="w-full bg-white/5 border border-white/10 px-4 py-2 rounded text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-accent transition-colors">
+                </div>
+                <div>
+                    <label class="text-xs font-mono text-gray-400 uppercase tracking-wider block mb-2">Secret Access Key</label>
+                    <input type="password" id="secret_key" placeholder="AWS_SECRET_ACCESS_KEY" class="w-full bg-white/5 border border-white/10 px-4 py-2 rounded text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-accent transition-colors">
+                </div>
+                <div>
+                    <label class="text-xs font-mono text-gray-400 uppercase tracking-wider block mb-2">Session Token</label>
+                    <input type="password" id="session_token" placeholder="Optional" class="w-full bg-white/5 border border-white/10 px-4 py-2 rounded text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-accent transition-colors">
+                </div>
+                <div>
+                    <label class="text-xs font-mono text-gray-400 uppercase tracking-wider block mb-2">Region(s)</label>
+                    <input type="text" id="regions" placeholder="eu-central-1,us-east-1" class="w-full bg-white/5 border border-white/10 px-4 py-2 rounded text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-accent transition-colors">
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="remember" class="w-4 h-4 rounded border-white/20 bg-white/5 text-accent focus:ring-accent">
+                    <label for="remember" class="text-xs text-gray-400">Remember credentials</label>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button id="test-conn-btn" class="flex-1 border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-white/10 transition-all">
+                        Test Connection
+                    </button>
+                    <button id="scan-btn" class="flex-1 bg-accent text-black px-4 py-2 text-xs font-semibold uppercase tracking-wider hover:bg-white transition-all">
+                        Scan Resources
+                    </button>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Queues Tab -->
-            <div id="tab-queues" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
-                    <div class="overflow-auto flex-1">
-                        <table class="w-full caption-bottom text-sm">
-                            <thead class="[&_tr]:border-b border-border">
-                                <tr class="border-b border-border bg-muted/30">
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
-                                        Region</th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Name
-                                    </th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">URL
-                                    </th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Sent
-                                        (28d)</th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
-                                        Received (28d)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="list-queues" class="[&_tr:last-child]:border-0">
-                                <!-- Items injected here -->
-                            </tbody>
-                        </table>
-                    </div>
+    <main>
+        <!-- HERO SECTION -->
+        <section class="skew-target relative h-screen w-full flex flex-col justify-center items-center overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505] z-10 pointer-events-none"></div>
+            
+            <div class="relative z-20 text-center max-w-5xl px-6">
+                <div class="inline-flex items-center gap-3 border border-white/10 bg-white/5 px-4 py-1.5 rounded-full mb-8 backdrop-blur-sm">
+                    <span class="font-mono text-[10px] text-accent tracking-widest uppercase">v2.5.0 Production Ready</span>
+                </div>
+                <h1 class="font-display font-semibold text-6xl md:text-9xl tracking-tight mb-6 leading-[0.9] text-white mix-blend-screen scramble-text">
+                    CLOUD <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-400 to-gray-600">ORCHESTRATION</span>
+                </h1>
+                <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-10 font-light">
+                    Unified control plane for asynchronous messaging. <br>
+                    Manage SQS queues and SNS topics with zero latency visibility.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                    <button onclick="openCredentialsModal()" class="bg-accent text-black px-8 py-4 font-semibold text-sm uppercase tracking-widest hover:bg-white transition-all hover-trigger w-full sm:w-auto btn-magnetic">
+                        Launch Instance
+                    </button>
+                    <button onclick="document.getElementById('dashboard').scrollIntoView({behavior: 'smooth'})" class="px-8 py-4 border border-white/20 text-white font-semibold text-sm uppercase tracking-widest hover:bg-white/10 transition-all hover-trigger w-full sm:w-auto btn-magnetic">
+                        View Dashboard
+                    </button>
                 </div>
             </div>
+        </section>
 
-            <!-- Subscriptions Tab -->
-            <div id="tab-links" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
-                    <div class="overflow-auto flex-1">
-                        <table class="w-full caption-bottom text-sm">
-                            <thead class="[&_tr]:border-b border-border">
-                                <tr class="border-b border-border bg-muted/30">
-                                    <th
-                                        class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs w-[100px]">
-                                        Region</th>
-                                    <th
-                                        class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs w-[300px]">
-                                        Topic</th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
-                                        Subscribed Queues</th>
-                                </tr>
-                            </thead>
-                            <tbody id="list-links" class="[&_tr:last-child]:border-0">
-                                <!-- Items injected here -->
-                            </tbody>
-                        </table>
-                    </div>
+        <!-- MARQUEE -->
+        <div class="border-y border-white/5 bg-[#080808] py-8 relative z-20 overflow-hidden marquee-mask w-full">
+            <div class="flex whitespace-nowrap animate-marquee w-[max-content]">
+                <div class="flex gap-20 px-10 items-center">
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5"></i> SQS_STANDARD</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="radio" class="w-5 h-5"></i> SNS_TOPICS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5"></i> LAMBDA_TRIGGERS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="activity" class="w-5 h-5"></i> KINESIS_STREAMS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="database" class="w-5 h-5"></i> DYNAMODB</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="shield" class="w-5 h-5"></i> IAM_ROLES</span>
+                </div>
+                <div class="flex gap-20 px-10 items-center">
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5"></i> SQS_STANDARD</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="radio" class="w-5 h-5"></i> SNS_TOPICS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5"></i> LAMBDA_TRIGGERS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="activity" class="w-5 h-5"></i> KINESIS_STREAMS</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="database" class="w-5 h-5"></i> DYNAMODB</span>
+                    <span class="font-display font-semibold text-2xl text-white/30 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="shield" class="w-5 h-5"></i> IAM_ROLES</span>
                 </div>
             </div>
+        </div>
 
-            <!-- Orphan Tab -->
-            <div id="tab-orphan" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
-                    <div class="overflow-auto flex-1">
-                        <table class="w-full caption-bottom text-sm">
-                            <thead class="[&_tr]:border-b border-border">
-                                <tr class="border-b border-border bg-muted/30">
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
-                                        Region</th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Name
-                                    </th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">URL
-                                    </th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">Sent
-                                        (28d)</th>
-                                    <th class="h-12 px-6 text-left align-middle font-medium text-muted-foreground text-xs">
-                                        Received (28d)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="list-orphan" class="[&_tr:last-child]:border-0">
-                                <!-- Items injected here -->
-                            </tbody>
-                        </table>
+        <!-- DASHBOARD SECTION -->
+        <section id="dashboard" class="skew-target py-32 px-6 relative z-20">
+            <div class="max-w-7xl mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-end mb-16 border-b border-white/10 pb-8">
+                    <div>
+                        <span class="text-accent font-mono text-xs tracking-widest block mb-2">/// INFRASTRUCTURE HEALTH</span>
+                        <h2 class="font-display font-semibold text-white text-4xl md:text-5xl scramble-text">Live Statistics</h2>
                     </div>
-                </div>
-            </div>
-
-            <!-- Real-time Tab -->
-            <div id="tab-realtime" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border border-border h-full overflow-hidden flex flex-col bg-card shadow-sm">
-                    <div class="p-8 flex gap-8 h-full">
-                        <!-- Left: queue selector and controls -->
-                        <div class="w-1/3 flex flex-col">
-                            <h3 class="text-sm font-medium text-foreground mb-4">Queues to monitor</h3>
-
-                            <div class="mt-1">
-                                <h4 class="text-sm font-medium text-muted-foreground mb-1">Queues filter</h4>
-                                <input id="realtime-queue-filter" oninput="filterQueues()" placeholder="Filter queues by name" class="w-full rounded-md border border-border px-3 py-2 mb-2 bg-background text-sm transition-all placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-0">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <button id="realtime-select-queues-all" onclick="selectAllQueues()" class="inline-flex items-center gap-2 rounded-md px-2 py-1 border border-border bg-background text-sm font-medium transition-all hover:bg-muted">All</button>
-                                    <button id="realtime-select-queues-none" onclick="deselectAllQueues()" class="inline-flex items-center gap-2 rounded-md px-2 py-1 border border-border bg-background text-sm font-medium transition-all hover:bg-muted">None</button>
-                                </div>
-                                <div id="realtime-queue-list" class="h-40 overflow-auto rounded-md border border-border p-3 bg-background text-sm">
-                                    <div class="text-xs text-muted-foreground">Scan resources first to populate queues</div>
-                                </div>
-                            </div>
-
-                            <div class="mt-3 flex items-center gap-2">
-                                <button id="realtime-toggle" onclick="toggleRealtime()" class="inline-flex items-center gap-2 rounded-md px-4 py-2 bg-primary text-primary-foreground text-sm font-medium transition-all hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-0">
-                                    <i data-lucide="play"></i>
-                                    <span id="realtime-status">Start Monitoring</span>
-                                </button>
-                                <button onclick="clearRealtimeLog()" class="inline-flex items-center gap-2 rounded-md px-4 py-2 border border-border bg-transparent text-sm font-medium transition-all hover:bg-muted focus-visible:outline-none focus-visible:ring-0">Clear</button>
-                            </div>
+                    <div class="text-right flex flex-col gap-4 mt-4 md:mt-0">
+                        <div class="flex gap-3">
+                            <button id="stats-btn" class="border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-white/10 transition-all">
+                                Fetch Stats
+                            </button>
                         </div>
+                        <p class="text-gray-500 font-mono text-xs uppercase tracking-widest">
+                            Queues: <span id="count-queues">0</span> | Topics: <span id="count-topics">0</span> | Subs: <span id="count-links">0</span>
+                        </p>
+                    </div>
+                </div>
 
-                        <!-- Right: realtime log -->
-                        <div class="flex-1">
-                            <h3 class="text-sm font-medium text-foreground mb-4">Live events</h3>
-                            <div id="realtime-log" class="overflow-auto rounded-md border border-border p-4 bg-background h-96">
-                                <div class="text-muted-foreground text-center py-8">Click "Start Monitoring" to begin tracking real-time message exchanges</div>
-                            </div>
-                        </div>
+                <!-- Statistics Grid -->
+                <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Placeholder cards will be populated by JavaScript -->
+                    <div class="glass-panel spotlight-card rounded-xl p-6 text-center">
+                        <div class="text-gray-400 text-sm mb-2">Scan resources to view statistics</div>
+                    </div>
+                </div>
+
+                <!-- Queues List -->
+                <div class="mt-16">
+                    <h3 class="font-display font-semibold text-2xl text-white mb-6">Queues</h3>
+                    <div id="queues-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Queues will be populated here -->
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Diagram Tab -->
-            <div id="tab-diagram" class="tab-content hidden h-full flex flex-col">
-                <div class="rounded-md border border-border h-full overflow-hidden bg-card shadow-sm">
-                    <div class="p-8 flex gap-8 h-full">
-                        <!-- Left: Selection list -->
-                        <div class="w-1/3 flex flex-col border-r border-border pr-8">
-                            <h3 class="text-sm font-medium text-foreground mb-6">Select Resources</h3>
+        <!-- TOPICS SECTION -->
+        <section id="topics" class="skew-target py-32 px-6 bg-[#050505] border-t border-white/5 relative z-20">
+            <div class="max-w-7xl mx-auto">
+                <div class="mb-16">
+                    <span class="text-accent font-mono text-xs tracking-widest block mb-2">/// SNS TOPICS</span>
+                    <h2 class="font-display font-semibold text-white text-4xl md:text-5xl scramble-text mb-6">Topics</h2>
+                </div>
+                <div id="topics-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Topics will be populated here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- PIPELINE SECTION -->
+        <section id="pipeline" class="py-24 bg-[#050505] relative z-20 border-t border-white/5">
+            <div class="max-w-[1400px] mx-auto px-6">
+                <div class="mb-16">
+                    <span class="text-accent font-mono text-xs tracking-widest block mb-2">/// MESSAGE LIFECYCLE</span>
+                    <h2 class="font-display font-semibold text-white text-4xl md:text-5xl scramble-text mb-6">Pipeline Visualization</h2>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Left: Selection -->
+                    <div class="lg:col-span-1">
+                        <div class="glass-panel spotlight-card rounded-xl p-6 sticky top-24">
+                            <h3 class="font-display font-semibold text-white mb-6">Select Resources</h3>
                             
                             <div class="mb-6">
-                                <h4 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Topics</h4>
+                                <h4 class="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">Topics</h4>
                                 <div class="flex gap-2 mb-2">
-                                    <button onclick="selectAllDiagramTopics()" class="text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-all">All</button>
-                                    <button onclick="deselectAllDiagramTopics()" class="text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-all">None</button>
+                                    <button onclick="selectAllDiagramTopics()" class="text-xs px-2 py-1 rounded border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">All</button>
+                                    <button onclick="deselectAllDiagramTopics()" class="text-xs px-2 py-1 rounded border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">None</button>
                                 </div>
-                                <div id="diagram-topic-list" class="overflow-auto rounded-md border border-border p-3 bg-background max-h-64">
-                                    <div class="text-xs text-muted-foreground">Scan resources first</div>
+                                <div id="diagram-topic-list" class="overflow-auto rounded border border-white/10 p-3 bg-black/30 max-h-64">
+                                    <div class="text-xs text-gray-500">Scan resources first</div>
                                 </div>
                             </div>
 
                             <div>
-                                <h4 class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Queues</h4>
+                                <h4 class="text-xs font-mono text-gray-400 uppercase tracking-wider mb-3">Queues</h4>
                                 <div class="flex gap-2 mb-2">
-                                    <button onclick="selectAllDiagramQueues()" class="text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-all">All</button>
-                                    <button onclick="deselectAllDiagramQueues()" class="text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-all">None</button>
+                                    <button onclick="selectAllDiagramQueues()" class="text-xs px-2 py-1 rounded border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">All</button>
+                                    <button onclick="deselectAllDiagramQueues()" class="text-xs px-2 py-1 rounded border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">None</button>
                                 </div>
-                                <div id="diagram-queue-list" class="overflow-auto rounded-md border border-border p-3 bg-background max-h-64">
-                                    <div class="text-xs text-muted-foreground">Scan resources first</div>
+                                <div id="diagram-queue-list" class="overflow-auto rounded border border-white/10 p-3 bg-black/30 max-h-64">
+                                    <div class="text-xs text-gray-500">Scan resources first</div>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Right: Mermaid diagram -->
-                        <div class="flex-1 flex flex-col">
-                            <h3 class="text-sm font-medium text-foreground mb-6">Diagram</h3>
-                            <div class="flex-1 overflow-auto rounded-md border border-border bg-white p-8">
-                                <div class="mermaid" id="mermaid-graph">
-                                    graph TD;
-                                    A[Select resources to view diagram] --> B[Diagram will appear here];
-                                </div>
+                    <!-- Right: Diagram -->
+                    <div class="lg:col-span-2">
+                        <div class="glass-panel spotlight-card rounded-xl p-8 min-h-[600px]">
+                            <div id="mermaid-graph" class="mermaid">
+                                graph TD;
+                                A[Select resources to view diagram] --> B[Diagram will appear here];
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </section>
 
-        </div>
+        <!-- REAL-TIME MONITORING SECTION -->
+        <section id="realtime" class="skew-target py-32 px-6 bg-[#050505] relative z-20 border-t border-white/5">
+            <div class="max-w-7xl mx-auto">
+                <div class="mb-16">
+                    <span class="text-accent font-mono text-xs tracking-widest block mb-2">/// LIVE MONITORING</span>
+                    <h2 class="font-display font-semibold text-white text-4xl md:text-5xl scramble-text mb-6">Real-time Monitoring</h2>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Left: Queue Selection -->
+                    <div class="lg:col-span-1">
+                        <div class="glass-panel spotlight-card rounded-xl p-6">
+                            <h3 class="font-display font-semibold text-white mb-4">Queues to Monitor</h3>
+                            <div class="mb-4">
+                                <input id="realtime-queue-filter" oninput="filterQueues()" placeholder="Filter queues..." class="w-full bg-white/5 border border-white/10 px-3 py-2 rounded text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-accent mb-2">
+                                <div class="flex gap-2 mb-2">
+                                    <button onclick="selectAllQueues()" class="text-xs px-2 py-1 rounded border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">All</button>
+                                    <button onclick="deselectAllQueues()" class="text-xs px-2 py-1 rounded border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">None</button>
+                                </div>
+                                <div id="realtime-queue-list" class="overflow-auto rounded border border-white/10 p-3 bg-black/30 max-h-96">
+                                    <div class="text-xs text-gray-500">Scan resources first</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="realtime-toggle" onclick="toggleRealtime()" class="flex-1 bg-accent text-black px-4 py-2 text-xs font-semibold uppercase tracking-wider hover:bg-white transition-all">
+                                    <i data-lucide="play" class="w-4 h-4 inline mr-2"></i>
+                                    <span id="realtime-status">Start Monitoring</span>
+                                </button>
+                                <button onclick="clearRealtimeLog()" class="border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-white/10 transition-all">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Events -->
+                    <div class="lg:col-span-2">
+                        <div class="glass-panel spotlight-card rounded-xl p-6">
+                            <h3 class="font-display font-semibold text-white mb-4">Live Events</h3>
+                            <div id="realtime-log" class="overflow-auto rounded border border-white/10 p-4 bg-black/30 h-96">
+                                <div class="text-gray-500 text-center py-8">Click "Start Monitoring" to begin tracking real-time message exchanges</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="bg-[#020202] pt-32 pb-10 px-6 border-t border-white/10 relative overflow-hidden">
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none select-none pointer-events-none opacity-5">
+                <span class="text-[20vw] font-display font-black text-white whitespace-nowrap -ml-10">AWS MNGT</span>
+            </div>
+
+            <div class="max-w-[1400px] mx-auto relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-12">
+                <div>
+                    <h3 class="text-2xl font-display font-semibold text-white mb-6">Start Building</h3>
+                    <p class="text-gray-400 text-sm mb-4">Manage your AWS SNS/SQS infrastructure with ease.</p>
+                </div>
+                
+                <div class="flex gap-12 text-sm text-gray-500 font-mono tracking-wider uppercase">
+                    <div class="flex flex-col gap-3">
+                        <span class="text-white">Services</span>
+                        <a href="#dashboard" class="hover:text-accent transition-colors">SQS</a>
+                        <a href="#topics" class="hover:text-accent transition-colors">SNS</a>
+                        <a href="#pipeline" class="hover:text-accent transition-colors">Pipeline</a>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <span class="text-white">Resources</span>
+                        <a href="#realtime" class="hover:text-accent transition-colors">Monitoring</a>
+                        <a href="#" onclick="openCredentialsModal()" class="hover:text-accent transition-colors">Credentials</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="max-w-[1400px] mx-auto mt-20 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-[10px] text-gray-600 font-mono uppercase">
+                <span>© 2025 AWS MANAGEMENT</span>
+                <span class="mt-2 md:mt-0">SYSTEM STATUS: <span class="text-green-500">NORMAL</span></span>
+            </div>
+        </footer>
+
     </main>
 
-    <!-- React build -->
+    <!-- React build for diagram checkboxes -->
     <script type="module" src="{{ url_for('static', filename='react/main.js') }}"></script>
+    <!-- Main app JavaScript -->
     <script src="{{ url_for('static', filename='app.js') }}"></script>
+
     <script>
-        // Initialize Lucide icons
+        // Initialize Icons
         lucide.createIcons();
 
-        // Theme Toggle Logic
-        function toggleTheme() {
-            const html = document.documentElement;
-            if (html.classList.contains('dark')) {
-                html.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-            } else {
-                html.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
+        // Modal functions
+        function openCredentialsModal() {
+            document.getElementById('credentials-modal').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeCredentialsModal() {
+            document.getElementById('credentials-modal').classList.remove('active');
+        }
+
+        // Close modal on overlay click
+        document.getElementById('credentials-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'credentials-modal') {
+                closeCredentialsModal();
+            }
+        });
+
+        // Console access button
+        document.getElementById('console-access-btn').addEventListener('click', openCredentialsModal);
+
+        // --- 1. SETUP LENIS & SCROLL SKEW ---
+        const lenis = new Lenis({
+            lerp: 0.1,
+            smooth: true,
+            direction: 'vertical',
+        });
+        
+        let currentSkew = 0;
+        function raf(time) {
+            lenis.raf(time);
+            
+            // Interaction: Liquid Scroll Skew
+            const skewTarget = lenis.velocity * 0.1; 
+            currentSkew += (skewTarget - currentSkew) * 0.1;
+            const clampedSkew = Math.max(Math.min(currentSkew, 5), -5);
+            
+            document.querySelectorAll('.skew-target').forEach(el => {
+                el.style.transform = `skewY(${clampedSkew}deg)`;
+            });
+
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        // --- 2. SPOTLIGHT INTERACTION ---
+        document.addEventListener('mousemove', (e) => {
+            document.querySelectorAll('.spotlight-card').forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        // --- 3. TEXT SCRAMBLE INTERACTION ---
+        class ScrambleText {
+            constructor(el) {
+                this.el = el;
+                this.chars = '!<>-_\\/[]{}—=+*^?#________';
+                this.update = this.update.bind(this);
+            }
+            setText(newText) {
+                const oldText = this.el.innerText;
+                const length = Math.max(oldText.length, newText.length);
+                const promise = new Promise((resolve) => this.resolve = resolve);
+                this.queue = [];
+                for (let i = 0; i < length; i++) {
+                    const from = oldText[i] || '';
+                    const to = newText[i] || '';
+                    const start = Math.floor(Math.random() * 40);
+                    const end = start + Math.floor(Math.random() * 40);
+                    this.queue.push({ from, to, start, end });
+                }
+                cancelAnimationFrame(this.frameRequest);
+                this.frame = 0;
+                this.update();
+                return promise;
+            }
+            update() {
+                let output = '';
+                let complete = 0;
+                for (let i = 0, n = this.queue.length; i < n; i++) {
+                    let { from, to, start, end, char } = this.queue[i];
+                    if (this.frame >= end) {
+                        complete++;
+                        output += to;
+                    } else if (this.frame >= start) {
+                        if (!char || Math.random() < 0.28) {
+                            char = this.randomChar();
+                            this.queue[i].char = char;
+                        }
+                        output += `<span class="opacity-50">${char}</span>`;
+                    } else {
+                        output += from;
+                    }
+                }
+                this.el.innerHTML = output;
+                if (complete === this.queue.length) {
+                    this.resolve();
+                } else {
+                    this.frameRequest = requestAnimationFrame(this.update);
+                    this.frame++;
+                }
+            }
+            randomChar() {
+                return this.chars[Math.floor(Math.random() * this.chars.length)];
             }
         }
 
-        // Init theme from local storage or default to light
-        if (localStorage.getItem('theme') === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-
-        // Custom Tab Switching Logic to handle Tailwind classes
-        const originalSwitchTab = window.switchTab || function () { };
-
-        window.switchTab = function (tabName) {
-            // Hide all contents
-            document.querySelectorAll('.tab-content').forEach(el => {
-                el.classList.add('hidden');
-            });
-            // Show target
-            document.getElementById('tab-' + tabName).classList.remove('hidden');
-
-            // Update buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                // Reset to inactive state
-                btn.classList.remove('border-primary', 'text-foreground');
-                btn.classList.add('border-transparent', 'text-muted-foreground', 'hover:text-foreground');
-
-                if (btn.dataset.tab === tabName) {
-                    // Set active state
-                    btn.classList.add('border-primary', 'text-foreground');
-                    btn.classList.remove('border-transparent', 'text-muted-foreground', 'hover:text-foreground');
+        const scrambleElements = document.querySelectorAll('.scramble-text');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const el = entry.target;
+                    const fx = new ScrambleText(el);
+                    fx.setText(el.innerText);
+                    observer.unobserve(el);
                 }
             });
-        }
+        }, { threshold: 0.5 });
+        
+        scrambleElements.forEach(el => observer.observe(el));
 
-        // Initialize active tab on page load
-        window.switchTab('topics');
+        // --- 4. MAGNETIC BUTTONS ---
+        const buttons = document.querySelectorAll('.btn-magnetic');
+        buttons.forEach(btn => {
+            btn.addEventListener('mousemove', (e) => {
+                const rect = btn.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                gsap.to(btn, { x: x * 0.3, y: y * 0.3, duration: 0.2 });
+            });
+            btn.addEventListener('mouseleave', () => {
+                gsap.to(btn, { x: 0, y: 0, duration: 0.2 });
+            });
+        });
+
+        // --- 5. ANIMATIONS ---
+        gsap.registerPlugin(ScrollTrigger);
+
+        gsap.utils.toArray('.glass-panel').forEach((panel, i) => {
+            gsap.from(panel, {
+                scrollTrigger: {
+                    trigger: panel,
+                    start: "top 90%"
+                },
+                y: 30,
+                opacity: 0,
+                duration: 0.8,
+                delay: i * 0.05,
+                ease: "power3.out"
+            });
+        });
     </script>
-</body>
 
+</body>
 </html>

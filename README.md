@@ -1,18 +1,18 @@
 # AWS SNS/SQS Manager
 
-Application web Flask pour inventorier et surveiller en temps réel les Topics SNS, les Queues SQS et leurs souscriptions AWS.
+Web application built with Flask for inventorying and real-time monitoring of AWS SNS Topics, SQS Queues, and their subscriptions.
 
-## Fonctionnalités
+## Features
 
-- 🔍 **Scan automatique** des ressources SNS/SQS multi-régions
-- 📊 **Statistiques CloudWatch** (messages publiés, envoyés, reçus sur 28 jours)
-- ⚡ **Monitoring temps réel** des messages SQS avec polling direct
-- 📈 **Diagrammes visuels** des topologies SNS → SQS
-- 💾 **Exports multiples** : JSON, SQL, Draw.io, Mermaid
+- **Automatic scanning** of SNS/SQS resources across multiple regions
+- **CloudWatch statistics** (messages published, sent, received over 28 days)
+- **Real-time monitoring** of SQS messages with direct polling
+- **Visual diagrams** of SNS → SQS topologies
+- **Multiple export formats**: JSON, SQL, Draw.io, Mermaid, JSON Canvas
 
 ## Installation
 
-Prérequis: Python 3.9+
+Prerequisites: Python 3.9+
 
 ```bash
 python -m venv .venv
@@ -20,32 +20,31 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Utilisation
+## Usage
 
-### Interface Web (Recommandé)
+### Web Interface (Recommended)
 
-Lancez l'application web :
+Start the web application:
 
 ```bash
 python app.py
 ```
 
-L'application s'ouvrira automatiquement dans votre navigateur sur `http://127.0.0.1:5000`
+The application will automatically open in your browser at `http://127.0.0.1:5000`
 
-**Étapes :**
-1. Entrez vos credentials AWS (Access Key + Secret + Session Token pour rôle IAM)
-2. Spécifiez la ou les régions (ex: `eu-central-1,us-east-1`)
-3. Cliquez sur "Scan Resources" pour inventorier vos ressources
-4. Consultez les onglets Topics, Queues, Links pour voir les détails
-5. Allez dans l'onglet "Real-time" pour surveiller les messages en direct
+**Steps:**
+1. Enter your AWS credentials (Access Key + Secret + Session Token for IAM roles)
+2. Specify one or more regions (e.g., `eu-central-1,us-east-1`)
+3. Click "Scan Resources" to inventory your resources
+4. View the Dashboard, Topics, and Pipeline sections for details
+5. Go to the "Real-time" section to monitor messages in real-time
 
-**Monitoring temps réel :**
-- Sélectionnez les topics SNS à surveiller
-- Les queues abonnées sont automatiquement incluses
-- Cliquez sur "Start Monitoring" (bouton bleu)
-- Les messages apparaissent instantanément (délai < 4 secondes)
+**Real-time monitoring:**
+- Select SQS queues to monitor
+- Click "Start Monitoring" (orange button that turns red when active)
+- Messages appear instantly (delay < 4 seconds)
 
-### CLI (Ligne de commande)
+### CLI (Command Line)
 
 ```bash
 python aws_sns_sqs_map.py --region eu-west-1 --format json
@@ -53,40 +52,40 @@ python aws_sns_sqs_map.py --region eu-west-1 --format mermaid > diagram.mmd
 ```
 
 Options:
-- `--region REGION` (répétable)
-- `--profile PROFILE` (profil AWS local, optionnel)
-- `--aws-access-key-id` (optionnel) : clé d'accès AWS
-- `--aws-secret-access-key` (optionnel) : secret AWS
-- `--aws-session-token` (optionnel) : token de session pour credentials temporaires
-- `--format json|mermaid` (défaut: json)
-- `--output chemin` (optionnel; sinon stdout)
+- `--region REGION` (repeatable)
+- `--profile PROFILE` (local AWS profile, optional)
+- `--aws-access-key-id` (optional): AWS access key
+- `--aws-secret-access-key` (optional): AWS secret key
+- `--aws-session-token` (optional): session token for temporary credentials
+- `--format json|mermaid` (default: json)
+- `--output path` (optional; otherwise stdout)
 
-Exemples :
+Examples:
 
 ```powershell
-# Utiliser un profil AWS
-python aws_sns_sqs_map.py --profile mon-profil --region eu-west-1 --format json
+# Use an AWS profile
+python aws_sns_sqs_map.py --profile my-profile --region eu-west-1 --format json
 
-# Avec credentials temporaires (assume role)
+# With temporary credentials (assume role)
 python aws_sns_sqs_map.py --region eu-west-1 --aws-access-key-id ABC... --aws-secret-access-key xyz... --aws-session-token token... --format json
 ```
 
-## Architecture technique
+## Technical Architecture
 
-- **Backend** : Flask (Python)
-- **Frontend** : HTML/JS/TailwindCSS
-- **AWS SDK** : boto3
-- **Stockage credentials** : keyring (système d'exploitation)
-- **Monitoring** : Polling SQS direct avec long-polling (2s)
+- **Backend**: Flask (Python)
+- **Frontend**: HTML/JS with TailwindCSS, GSAP animations, Lenis smooth scroll
+- **AWS SDK**: boto3
+- **Credential storage**: keyring (operating system)
+- **Monitoring**: Direct SQS polling with long-polling (5s)
 
 ## Limitations
 
-- Mono-compte par scan (multi-régions supporté)
-- Monitoring temps réel limité aux queues SQS (les topics SNS ne stockent pas de messages)
-- Les messages sont lus de façon non-destructive (visibility timeout = 0)
-- Authentification assume role AWS requise (Access Key + Secret + Session Token)
+- Single account per scan (multi-region supported)
+- Real-time monitoring limited to SQS queues (SNS topics do not store messages)
+- Messages are read non-destructively (visibility timeout = 0)
+- AWS assume role authentication required (Access Key + Secret + Session Token)
 
-## Exemple Mermaid
+## Mermaid Example
 
 ```mermaid
 graph LR
@@ -98,3 +97,14 @@ classDef topic fill:#f0f9ff,stroke:#38bdf8,color:#0c4a6e;
 classDef queue fill:#fef3c7,stroke:#f59e0b,color:#78350f;
 ```
 
+## Documentation
+
+- [Quick Start Guide](docs/quickstart.md) - Get started in 5 minutes
+- [Project Structure](docs/project-structure.md) - Architecture and code organization
+- [Monitoring Behavior](docs/monitoring-behavior.md) - How real-time monitoring works
+- [React Setup](docs/react-setup.md) - React components configuration
+- [Changelog](docs/changelog.md) - Version history
+
+## License
+
+This project is provided as-is for internal use.
