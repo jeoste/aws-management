@@ -541,28 +541,44 @@ body {
         document.getElementById('console-access-btn').addEventListener('click', openCredentialsModal);
 
         // --- 1. SETUP LENIS & SCROLL SKEW ---
-        const lenis = new Lenis({
-            lerp: 0.1,
-            smooth: true,
-            direction: 'vertical',
-        });
-        
-        let currentSkew = 0;
-        function raf(time) {
-            lenis.raf(time);
-            
-            // Interaction: Liquid Scroll Skew
-            const skewTarget = lenis.velocity * 0.1; 
-            currentSkew += (skewTarget - currentSkew) * 0.1;
-            const clampedSkew = Math.max(Math.min(currentSkew, 5), -5);
-            
-            document.querySelectorAll('.skew-target').forEach(el => {
-                el.style.transform = `skewY(${clampedSkew}deg)`;
-            });
+        // Wait for Lenis to be loaded
+        function initLenis() {
+            if (typeof Lenis === 'undefined') {
+                console.warn('Lenis not loaded yet, retrying...');
+                setTimeout(initLenis, 100);
+                return;
+            }
 
+            const lenis = new Lenis({
+                lerp: 0.1,
+                smooth: true,
+                direction: 'vertical',
+            });
+            
+            let currentSkew = 0;
+            function raf(time) {
+                lenis.raf(time);
+                
+                // Interaction: Liquid Scroll Skew
+                const skewTarget = lenis.velocity * 0.1; 
+                currentSkew += (skewTarget - currentSkew) * 0.1;
+                const clampedSkew = Math.max(Math.min(currentSkew, 5), -5);
+                
+                document.querySelectorAll('.skew-target').forEach(el => {
+                    el.style.transform = `skewY(${clampedSkew}deg)`;
+                });
+
+                requestAnimationFrame(raf);
+            }
             requestAnimationFrame(raf);
         }
-        requestAnimationFrame(raf);
+
+        // Initialize Lenis after DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLenis);
+        } else {
+            initLenis();
+        }
 
         // --- 2. SPOTLIGHT INTERACTION ---
         document.addEventListener('mousemove', (e) => {

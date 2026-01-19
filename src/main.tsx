@@ -52,23 +52,28 @@ export function mountDiagramCheckboxes(
   ;(window as any).diagramCheckboxRoots = roots
 
   // Import component dynamically
-  import('./components/DiagramCheckboxList').then(({ default: DiagramCheckboxList }) => {
-    // Create ref if it doesn't exist
-    const refs = (window as any).diagramCheckboxRefs || {}
-    if (!refs[type]) {
-      refs[type] = React.createRef()
-      ;(window as any).diagramCheckboxRefs = refs
-    }
+  import('./components/DiagramCheckboxList')
+    .then(({ default: DiagramCheckboxList }) => {
+      // Create ref if it doesn't exist
+      const refs = (window as any).diagramCheckboxRefs || {}
+      if (!refs[type]) {
+        refs[type] = React.createRef()
+        ;(window as any).diagramCheckboxRefs = refs
+      }
 
-    root.render(
-      React.createElement(DiagramCheckboxList, {
-        ref: refs[type],
-        items,
-        type,
-        onSelectionChange
-      })
-    )
-  })
+      root.render(
+        React.createElement(DiagramCheckboxList, {
+          ref: refs[type],
+          items,
+          type,
+          onSelectionChange
+        })
+      )
+    })
+    .catch((error) => {
+      console.error('Failed to load DiagramCheckboxList component:', error)
+      container.innerHTML = `<div class="text-xs text-red-500">Erreur de chargement: ${error.message}</div>`
+    })
 
   return root
 }
@@ -85,5 +90,8 @@ export function unmountDiagramCheckboxes(containerId: string) {
 if (typeof window !== 'undefined') {
   (window as any).mountDiagramCheckboxes = mountDiagramCheckboxes
   ;(window as any).unmountDiagramCheckboxes = unmountDiagramCheckboxes
+  
+  // Dispatch event to signal React is loaded
+  window.dispatchEvent(new CustomEvent('react-diagram-loaded'))
 }
 

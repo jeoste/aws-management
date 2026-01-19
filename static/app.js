@@ -5,6 +5,40 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('scan-btn').addEventListener('click', scanResources);
     document.getElementById('stats-btn').addEventListener('click', fetchStatistics);
 
+    // Check if React script loaded successfully (after a longer delay)
+    setTimeout(() => {
+        if (typeof window.mountDiagramCheckboxes === 'undefined') {
+            console.error('React diagram components not loaded after 2 seconds. Check if static/react/main.js exists.');
+            // Check if script tag exists and if it loaded
+            const reactScript = document.querySelector('script[src*="react/main.js"]');
+            if (reactScript) {
+                reactScript.addEventListener('error', () => {
+                    console.error('Failed to load React script. File may be missing. Run: npm run build');
+                    const errorMsg = '<div class="text-xs text-red-500 p-2 border border-red-500/30 rounded bg-red-500/10">⚠️ Script React introuvable. Exécutez: <code class="bg-black/30 px-1 rounded">npm run build</code></div>';
+                    const diagramTopicContainer = document.getElementById('diagram-topic-list');
+                    const diagramQueueContainer = document.getElementById('diagram-queue-list');
+                    if (diagramTopicContainer && diagramTopicContainer.innerHTML.includes('Scan resources first')) {
+                        diagramTopicContainer.innerHTML = errorMsg;
+                    }
+                    if (diagramQueueContainer && diagramQueueContainer.innerHTML.includes('Scan resources first')) {
+                        diagramQueueContainer.innerHTML = errorMsg;
+                    }
+                });
+            }
+        } else {
+            console.log('React diagram components loaded successfully');
+        }
+    }, 3000);
+
+    // Listen for React load event
+    window.addEventListener('react-diagram-loaded', () => {
+        console.log('React diagram components loaded');
+        // Update diagram lists if we have data
+        if (currentInventory.topics.length > 0 || currentInventory.queues.length > 0) {
+            updateDiagramLists();
+        }
+    });
+
     // Observe when pipeline section becomes visible to update diagram lists
     const pipelineSection = document.getElementById('pipeline');
     if (pipelineSection) {
@@ -282,6 +316,11 @@ async function scanResources() {
             const successMsg = `Scan terminé: ${currentInventory.topics.length} topics et ${currentInventory.queues.length} queues trouvés.`;
             setStatus(successMsg, 'success');
             showNotification(successMsg, 'success');
+            
+            // Force update diagram lists after scan (with delay to ensure React is ready)
+            setTimeout(() => {
+                updateDiagramLists();
+            }, 300);
         }
     })
     .catch(e => {
@@ -524,12 +563,39 @@ function updateDiagramLists() {
         reactLoaded: typeof window.mountDiagramCheckboxes !== 'undefined'
     });
 
-    // Wait for React to be loaded
+    // Wait for React to be loaded (with max retries)
     if (typeof window.mountDiagramCheckboxes === 'undefined') {
         console.warn('React components not loaded yet, retrying...');
-        setTimeout(updateDiagramLists, 100);
-        return;
+        // Try up to 30 times (3 seconds total) - modules can take time to load
+        if (!window.diagramListRetryCount) {
+            window.diagramListRetryCount = 0;
+        }
+        if (window.diagramListRetryCount < 30) {
+            window.diagramListRetryCount++;
+            setTimeout(updateDiagramLists, 100);
+            return;
+        } else {
+            console.error('React components failed to load after 30 retries (3 seconds)');
+            // Only show error if we have data to display
+            const hasData = currentInventory.topics.length > 0 || currentInventory.queues.length > 0;
+            if (hasData) {
+                const diagramTopicContainer = document.getElementById('diagram-topic-list');
+                const diagramQueueContainer = document.getElementById('diagram-queue-list');
+                const errorMsg = '<div class="text-xs text-red-500 p-2 border border-red-500/30 rounded bg-red-500/10">⚠️ React non chargé après 3s. Vérifiez la console (F12) pour les erreurs.</div>';
+                if (diagramTopicContainer && currentInventory.topics.length > 0) {
+                    diagramTopicContainer.innerHTML = errorMsg;
+                }
+                if (diagramQueueContainer && currentInventory.queues.length > 0) {
+                    diagramQueueContainer.innerHTML = errorMsg;
+                }
+            }
+            window.diagramListRetryCount = 0;
+            return;
+        }
     }
+    
+    // Reset retry count on success
+    window.diagramListRetryCount = 0;
 
     // Update diagram topic list with React
     const diagramTopicContainer = document.getElementById('diagram-topic-list');
