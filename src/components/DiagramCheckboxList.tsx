@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, forwardRef } from 'react'
+import { useState, useImperativeHandle, forwardRef, useEffect } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 
@@ -17,6 +17,13 @@ export interface DiagramCheckboxListRef {
 const DiagramCheckboxList = forwardRef<DiagramCheckboxListRef, DiagramCheckboxListProps>(
   ({ items, type, onSelectionChange }, ref) => {
     const [selectedArns, setSelectedArns] = useState<Set<string>>(new Set())
+
+    // Clear selection when items become empty (e.g., after clearing scan)
+    useEffect(() => {
+      if (items.length === 0) {
+        setSelectedArns(new Set())
+      }
+    }, [items.length])
 
     useImperativeHandle(ref, () => ({
       selectAll: () => {

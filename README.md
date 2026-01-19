@@ -15,9 +15,18 @@ Web application built with Flask for inventorying and real-time monitoring of AW
 Prerequisites: Python 3.9+
 
 ```bash
-python -m venv .venv
-. .venv/Scripts/activate  # Windows PowerShell: . .venv/Scripts/Activate.ps1
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate  # Windows PowerShell: . .venv\Scripts\Activate.ps1
+
+# Install dependencies
 pip install -r requirements.txt
+# or if pip is not found, use:
+python3 -m pip install -r requirements.txt
 ```
 
 ## Usage
@@ -28,6 +37,8 @@ Start the web application:
 
 ```bash
 python app.py
+# or if python is not found, use:
+python3 app.py
 ```
 
 The application will automatically open in your browser at `http://127.0.0.1:5000`
@@ -100,6 +111,7 @@ classDef queue fill:#fef3c7,stroke:#f59e0b,color:#78350f;
 ## Documentation
 
 - [Quick Start Guide](docs/quickstart.md) - Get started in 5 minutes
+- [Testing Guide](docs/testing.md) - How to test the project locally
 - [Project Structure](docs/project-structure.md) - Architecture and code organization
 - [Monitoring Behavior](docs/monitoring-behavior.md) - How real-time monitoring works
 - [React Setup](docs/react-setup.md) - React components configuration

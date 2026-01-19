@@ -11,16 +11,18 @@ cd aws-management
 ### 2. Create virtual environment
 
 ```bash
-python -m venv .venv
-. .venv/Scripts/Activate.ps1  # Windows PowerShell
-# or
+python3 -m venv .venv
 source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\Activate.ps1  # Windows PowerShell
 ```
 
 ### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
+# or if pip is not found, use:
+python3 -m pip install -r requirements.txt
 ```
 
 ## Usage

@@ -4,6 +4,36 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('test-conn-btn').addEventListener('click', testConnection);
     document.getElementById('scan-btn').addEventListener('click', scanResources);
     document.getElementById('stats-btn').addEventListener('click', fetchStatistics);
+
+    // Observe when pipeline section becomes visible to update diagram lists
+    const pipelineSection = document.getElementById('pipeline');
+    if (pipelineSection) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Update diagram lists when section becomes visible
+                    // Add a small delay to ensure React is ready
+                    setTimeout(() => {
+                        updateDiagramLists();
+                    }, 200);
+                }
+            });
+        }, { threshold: 0.1 });
+        observer.observe(pipelineSection);
+    }
+
+    // Also update diagram lists when clicking on pipeline link in nav
+    const pipelineNavLink = document.querySelector('a[href="#pipeline"]');
+    if (pipelineNavLink) {
+        pipelineNavLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('pipeline')?.scrollIntoView({ behavior: 'smooth' });
+            // Update after scroll animation
+            setTimeout(() => {
+                updateDiagramLists();
+            }, 500);
+        });
+    }
 });
 
 // State
@@ -29,6 +59,50 @@ function setStatus(msg, type = 'normal') {
     // Update text
     statusText.textContent = msg;
     statusText.className = type === 'error' ? 'text-red-400' : (type === 'success' ? 'text-green-400' : 'text-gray-400');
+}
+
+// Notification system
+function showNotification(message, type = 'info', duration = 5000) {
+    // Create notification container if it doesn't exist
+    let container = document.getElementById('notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notification-container';
+        container.className = 'fixed top-24 right-6 z-[100] space-y-2';
+        document.body.appendChild(container);
+    }
+
+    // Create notification element
+    const notification = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500/20 border-green-500/50' : 
+                     type === 'error' ? 'bg-red-500/20 border-red-500/50' : 
+                     'bg-blue-500/20 border-blue-500/50';
+    const textColor = type === 'success' ? 'text-green-400' : 
+                      type === 'error' ? 'text-red-400' : 
+                      'text-blue-400';
+    const icon = type === 'success' ? 'check-circle' : 
+                 type === 'error' ? 'alert-circle' : 
+                 'info';
+
+    notification.className = `${bgColor} ${textColor} border rounded-lg px-4 py-3 shadow-lg backdrop-blur-sm flex items-center gap-3 min-w-[300px] max-w-[400px] animate-slide-in`;
+    notification.innerHTML = `
+        <i data-lucide="${icon}" class="w-5 h-5 flex-shrink-0"></i>
+        <span class="text-sm font-medium flex-1">${message}</span>
+        <button onclick="this.parentElement.remove()" class="text-current opacity-70 hover:opacity-100 transition-opacity">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    `;
+    
+    container.appendChild(notification);
+    lucide.createIcons();
+
+    // Auto-remove after duration
+    setTimeout(() => {
+        notification.style.animation = 'slide-out 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, duration);
+
+    return notification;
 }
 
 // Update region indicator
@@ -148,6 +222,15 @@ async function scanResources() {
     btn.innerHTML = '<i data-lucide="loader-2" class="mr-2 h-4 w-4 animate-spin"></i> Scanning...';
     lucide.createIcons();
 
+    // Show initial notification
+    const scanningNotification = showNotification('Scan en cours...', 'info', 0);
+    
+    // Close modal automatically
+    const modal = document.getElementById('credentials-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+
     const data = {
         access_key: document.getElementById('access_key').value,
         secret_key: document.getElementById('secret_key').value,
@@ -157,23 +240,29 @@ async function scanResources() {
         remember: document.getElementById('remember').checked
     };
 
-    // Save credentials if remember is checked
-    await fetch('/api/credentials', {
+    // Save credentials if remember is checked (non-blocking)
+    fetch('/api/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
-    });
+    }).catch(e => console.error('Failed to save credentials:', e));
 
-    try {
-        const res = await fetch('/api/scan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const inventory = await res.json();
+    // Perform scan in background
+    fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(inventory => {
+        // Remove scanning notification
+        if (scanningNotification && scanningNotification.parentElement) {
+            scanningNotification.remove();
+        }
 
         if (inventory.error) {
             setStatus(`Scan failed: ${inventory.error}`, 'error');
+            showNotification(`Échec du scan: ${inventory.error}`, 'error');
         } else {
             // Flatten inventory
             currentInventory.topics = [];
@@ -190,15 +279,25 @@ async function scanResources() {
 
             updateTables();
             updateRegionIndicator(data.regions);
-            setStatus(`Scan complete. Found ${currentInventory.topics.length} topics and ${currentInventory.queues.length} queues.`, 'success');
+            const successMsg = `Scan terminé: ${currentInventory.topics.length} topics et ${currentInventory.queues.length} queues trouvés.`;
+            setStatus(successMsg, 'success');
+            showNotification(successMsg, 'success');
         }
-    } catch (e) {
-        setStatus(`Scan error: ${e}`, 'error');
-    } finally {
+    })
+    .catch(e => {
+        // Remove scanning notification
+        if (scanningNotification && scanningNotification.parentElement) {
+            scanningNotification.remove();
+        }
+        const errorMsg = `Erreur lors du scan: ${e}`;
+        setStatus(errorMsg, 'error');
+        showNotification(errorMsg, 'error');
+    })
+    .finally(() => {
         btn.disabled = false;
         btn.innerHTML = originalText;
         lucide.createIcons();
-    }
+    });
 }
 
 function updateTables() {
@@ -419,6 +518,12 @@ function updateTopicsList() {
 }
 
 function updateDiagramLists() {
+    console.log('updateDiagramLists called', {
+        topicsCount: currentInventory.topics.length,
+        queuesCount: currentInventory.queues.length,
+        reactLoaded: typeof window.mountDiagramCheckboxes !== 'undefined'
+    });
+
     // Wait for React to be loaded
     if (typeof window.mountDiagramCheckboxes === 'undefined') {
         console.warn('React components not loaded yet, retrying...');
@@ -429,22 +534,38 @@ function updateDiagramLists() {
     // Update diagram topic list with React
     const diagramTopicContainer = document.getElementById('diagram-topic-list');
     if (diagramTopicContainer) {
+        // Always clear and remount to ensure fresh state
+        diagramTopicContainer.innerHTML = '';
         if (currentInventory.topics.length === 0) {
             diagramTopicContainer.innerHTML = '<div class="text-xs text-gray-500">Scan resources first</div>';
         } else {
             const topics = currentInventory.topics.map(t => ({ arn: t.arn, name: t.name }));
-            window.mountDiagramCheckboxes('diagram-topic-list', 'topics', topics, updateDiagramFromSelection);
+            console.log('Mounting topics:', topics.length);
+            try {
+                window.mountDiagramCheckboxes('diagram-topic-list', 'topics', topics, updateDiagramFromSelection);
+            } catch (e) {
+                console.error('Failed to mount topic checkboxes:', e);
+                diagramTopicContainer.innerHTML = '<div class="text-xs text-red-500">Erreur lors du chargement des topics</div>';
+            }
         }
     }
     
     // Update diagram queue list with React
     const diagramQueueContainer = document.getElementById('diagram-queue-list');
     if (diagramQueueContainer) {
+        // Always clear and remount to ensure fresh state
+        diagramQueueContainer.innerHTML = '';
         if (currentInventory.queues.length === 0) {
             diagramQueueContainer.innerHTML = '<div class="text-xs text-gray-500">Scan resources first</div>';
         } else {
             const queues = currentInventory.queues.map(q => ({ arn: q.arn, name: q.name }));
-            window.mountDiagramCheckboxes('diagram-queue-list', 'queues', queues, updateDiagramFromSelection);
+            console.log('Mounting queues:', queues.length);
+            try {
+                window.mountDiagramCheckboxes('diagram-queue-list', 'queues', queues, updateDiagramFromSelection);
+            } catch (e) {
+                console.error('Failed to mount queue checkboxes:', e);
+                diagramQueueContainer.innerHTML = '<div class="text-xs text-red-500">Erreur lors du chargement des queues</div>';
+            }
         }
     }
 }

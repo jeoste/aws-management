@@ -12,9 +12,10 @@ declare global {
   }
 }
 
-// Initialize global refs
+// Initialize global refs and roots
 if (typeof window !== 'undefined') {
   (window as any).diagramCheckboxRefs = {}
+  (window as any).diagramCheckboxRoots = {}
 }
 
 // Export mount function for vanilla JS to use
@@ -30,11 +31,25 @@ export function mountDiagramCheckboxes(
     return null
   }
 
+  // Unmount existing root if it exists
+  const roots = (window as any).diagramCheckboxRoots || {}
+  const rootKey = `${containerId}-${type}`
+  if (roots[rootKey]) {
+    try {
+      roots[rootKey].unmount()
+    } catch (e) {
+      // Ignore unmount errors
+    }
+    delete roots[rootKey]
+  }
+
   // Clear container
   container.innerHTML = ''
 
-  // Create root
+  // Create new root
   const root = ReactDOM.createRoot(container)
+  roots[rootKey] = root
+  ;(window as any).diagramCheckboxRoots = roots
 
   // Import component dynamically
   import('./components/DiagramCheckboxList').then(({ default: DiagramCheckboxList }) => {
